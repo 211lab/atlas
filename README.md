@@ -43,3 +43,17 @@ ansible-playbook ansible/playbooks/bootstrap-control.yaml
 ansible-playbook ansible/playbooks/no_subscription.yaml 
 ansible-playbook ansible/playbooks/sync-atlas-dns.yaml 
 ```
+
+Used the UI to create a cluster and copied the join info to each node with UI
+
+had to debug babbage it wasn't reporting stats 
+
+first standardized on host files then ran through restart of certs and daemons
+
+```
+pvecm updatecerts -f
+systemctl restart pve-cluster
+systemctl restart corosync
+systemctl restart pvestatd pvedaemon pveproxy
+systemctl status pvestatd
+```

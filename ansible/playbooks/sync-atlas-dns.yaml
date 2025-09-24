@@ -8,19 +8,23 @@
   tasks:
     - name: Determine effective hostname (force .lan)
       ansible.builtin.set_fact:
-        effective_hostname: >-
+        fqdn_hostname: >-
           {{ hostvars[inventory_hostname].hostname
              | default(inventory_hostname ~ '.lan') }}
+        short_hostname: >-
+          {{ (hostvars[inventory_hostname].hostname
+              | default(inventory_hostname ~ '.lan'))
+              .split('.')[0] }}
 
-    - name: Set system hostname
+    - name: Set system hostname to FQDN
       ansible.builtin.hostname:
-        name: "{{ effective_hostname }}"
+        name: "{{ fqdn_hostname }}"
 
-    - name: Build peer hosts list with .lan enforced
+    - name: Build peer hosts list with FQDN + shortname
       ansible.builtin.set_fact:
         peer_hosts: |
           {% for host in groups['all'] %}
-          {{ hostvars[host].ansible_host }} {{ hostvars[host].hostname | default(host ~ '.lan') }}
+          {{ hostvars[host].ansible_host }} {{ hostvars[host].hostname | default(host ~ '.lan') }} {{ (hostvars[host].hostname | default(host ~ '.lan')).split('.')[0] }}
           {% endfor %}
 
     - name: Update /etc/hosts with peers
