@@ -1,0 +1,6 @@
+- name: Bootstrap control user across fleet
+  hosts: all
+  become: true
+  roles:
+    - ssh-keygen
+    - control-user

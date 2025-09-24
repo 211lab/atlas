@@ -1,0 +1,14 @@
+- name: Ensure local .ssh directory exists
+  ansible.builtin.file:
+    path: "{{ lookup('env','HOME') }}/.ssh"
+    state: directory
+    mode: "0700"
+
+- name: Generate SSH keypair if not present
+  community.crypto.openssh_keypair:
+    path: "{{ lookup('env','HOME') }}/.ssh/id_rsa_control"
+    type: rsa
+    size: 4096
+  delegate_to: localhost
+  become: false
+  run_once: true

@@ -1,0 +1,61 @@
+---
+- name: Configure Proxmox for no-subscription use
+  hosts: atlas
+  become: true
+  tasks:
+    - name: Disable Proxmox enterprise repository by renaming
+      ansible.builtin.command:
+        cmd: mv /etc/apt/sources.list.d/pve-enterprise.sources /etc/apt/sources.list.d/pve-enterprise.disabled
+        creates: /etc/apt/sources.list.d/pve-enterprise.disabled
+      notify: apt update
+
+    - name: Disable Ceph enterprise repository if present
+      ansible.builtin.command:
+        cmd: mv /etc/apt/sources.list.d/ceph.sources /etc/apt/sources.list.d/ceph.disabled
+        creates: /etc/apt/sources.list.d/ceph.disabled
+      ignore_errors: true
+      notify: apt update
+
+    - name: Ensure Proxmox no-subscription repository is present
+      copy:
+        dest: /etc/apt/sources.list.d/proxmox.sources
+        content: |
+          Types: deb
+          URIs: http://download.proxmox.com/debian/pve
+          Suites: trixie
+          Components: pve-no-subscription
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+        owner: root
+        group: root
+        mode: "0644"
+      notify: apt update
+
+    - name: Ensure Ceph no-subscription repository is present
+      copy:
+        dest: /etc/apt/sources.list.d/ceph.sources
+        content: |
+          Types: deb
+          URIs: http://download.proxmox.com/debian/ceph-squid
+          Suites: trixie
+          Components: no-subscription
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+        owner: root
+        group: root
+        mode: "0644"
+      notify: apt update
+
+    - name: Remove subscription nag popup from proxmoxlib.js
+      ansible.builtin.replace:
+        path: /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+        regexp: '(?s)Ext\.Msg\.show\(\{.*?\}\);'
+        replace: "orig_cmd();"
+        backup: yes
+
+    - name: Restart Proxmox proxy service
+      systemd:
+        name: pveproxy
+        state: restarted
+
+  handlers:
+    - name: apt update
+      command: apt-get update

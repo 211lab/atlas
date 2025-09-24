@@ -1,0 +1,45 @@
+# atlas
+
+Configuration management 211 Lab Proxmox cluster
+
+## Resouces
+
+https://github.com/lae/ansible-role-proxmox/tree/develop
+
+https://docs.ansible.com/ansible/latest/collections/community/proxmox/proxmox_cluster_module.html
+
+https://github.com/sbarbett/pihole-ansible
+
+## Background 
+
+| Name                            | What / Who                                                                                                                          | Why it matters                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Atlas**                       | A British supercomputer from the 1960s, developed by the University of Manchester, Ferranti, and Plessey. ([Wikipedia][1])          | It was one of the first machines to use virtual memory and strong support for multitasking/multiprogramming. It was extremely influential in early OS design. ([Wikipedia][1])                                                                                                                                                                             |
+| **Titan (supercomputer, ORNL)** | A more recent U.S. supercomputer built by Cray Inc., operating from 2012 to 2019 at Oak Ridge National Laboratory. ([Wikipedia][2]) | Titan was notable for being among the first large supercomputers to use a hybrid architecture combining CPUs and GPUs. It pushed forward scientific simulation capability. ([OLCF][6])                                                                                                                                                                     |
+| **Alan Turing**                 | English mathematician, logician and cryptanalyst (1912-1954). ([Wikipedia][3])                                                      | Often considered the father of theoretical computer science; he made foundational contributions (the Turing Machine model, the concept of algorithm/computation, breaking Enigma) which underlie modern computing. ([Wikipedia][3])                                                                                                                        |
+| **Grace Hopper**                | American computer scientist and U.S. Navy Rear Admiral (1906-1992). ([Wikipedia][4])                                                | A pioneer in developing compilers and high-level programming. She also was instrumental in developing COBOL, promoted usability of programming, popularized the metaphor “debugging.” ([Wikipedia][4])                                                                                                                                                     |
+| **Ada Lovelace**                | English mathematician and writer, 1815-1852. ([Wikipedia][5])                                                                       | Worked with Charles Babbage on his proposed Analytical Engine. She is often regarded as the first “computer programmer” because she wrote what is recognized as the first algorithm intended to be processed by a machine. She also had insight into how machines could go beyond number-calculations to more general symbolic processes. ([Wikipedia][5]) |
+| **Charles Babbage**             | English mathematician, philosopher, inventor and mechanical engineer (1791-1871). ([Wikipedia][7])                                  | Designed the Difference Engine and proposed the Analytical Engine, which are considered precursors to modern computers. His ideas influenced Ada Lovelace and laid essential groundwork for the concept of programmable machines. ([Wikipedia][7])                                                                                                         |
+
+[1]: https://en.wikipedia.org/wiki/Atlas_%28computer%29?utm_source=chatgpt.com "Atlas (computer)"
+[2]: https://en.wikipedia.org/wiki/Titan_%28supercomputer%29?utm_source=chatgpt.com "Titan (supercomputer)"
+[3]: https://en.wikipedia.org/wiki/Alan_Turing?utm_source=chatgpt.com "Alan Turing"
+[4]: https://en.wikipedia.org/wiki/Grace_Hopper?utm_source=chatgpt.com "Grace Hopper"
+[5]: https://en.wikipedia.org/wiki/Ada_Lovelace?utm_source=chatgpt.com "Ada Lovelace"
+[6]: https://www.olcf.ornl.gov/olcf-resources/compute-systems/titan/?utm_source=chatgpt.com "Titan - Oak Ridge Leadership Computing Facility"
+[7]: https://en.wikipedia.org/wiki/Charles_Babbage?utm_source=chatgpt.com "Charles Babbage"
+
+## Process
+
+Start with each node fresh wiht proxmox 9 iso
+
+Set IP of nodes in the proxmox setup `10.0.0.10X`
+
+Run ansible scripts 
+
+```sh
+ansible-playbook ansible/playbooks/update_all_packages_latest.yaml 
+ansible-playbook ansible/playbooks/bootstrap-control.yaml 
+ansible-playbook ansible/playbooks/no_subscription.yaml 
+ansible-playbook ansible/playbooks/sync-atlas-dns.yaml 
+```

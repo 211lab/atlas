@@ -1,0 +1,35 @@
+---
+- name: Configure hostnames and peer awareness
+  hosts: all
+  become: true
+  vars:
+    hosts_file: /etc/hosts
+
+  tasks:
+    - name: Determine effective hostname (force .lan)
+      ansible.builtin.set_fact:
+        effective_hostname: >-
+          {{ hostvars[inventory_hostname].hostname
+             | default(inventory_hostname ~ '.lan') }}
+
+    - name: Set system hostname
+      ansible.builtin.hostname:
+        name: "{{ effective_hostname }}"
+
+    - name: Build peer hosts list with .lan enforced
+      ansible.builtin.set_fact:
+        peer_hosts: |
+          {% for host in groups['all'] %}
+          {{ hostvars[host].ansible_host }} {{ hostvars[host].hostname | default(host ~ '.lan') }}
+          {% endfor %}
+
+    - name: Update /etc/hosts with peers
+      ansible.builtin.copy:
+        dest: "{{ hosts_file }}"
+        content: |
+          127.0.0.1   localhost
+          ::1         localhost
+          {{ peer_hosts }}
+        owner: root
+        group: root
+        mode: "0644"
