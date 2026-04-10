@@ -10,7 +10,7 @@ https://docs.ansible.com/ansible/latest/collections/community/proxmox/proxmox_cl
 
 https://github.com/sbarbett/pihole-ansible
 
-## Background 
+## Background
 
 | Name                            | What / Who                                                                                                                          | Why it matters                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35,18 +35,18 @@ Start with each node fresh wiht proxmox 9 iso
 
 Set IP of nodes in the proxmox setup `10.0.0.10X`
 
-Run ansible scripts 
+Run ansible scripts
 
 ```sh
-ansible-playbook ansible/playbooks/update_all_packages_latest.yaml 
-ansible-playbook ansible/playbooks/bootstrap-control.yaml 
-ansible-playbook ansible/playbooks/no_subscription.yaml 
-ansible-playbook ansible/playbooks/sync-atlas-dns.yaml 
+ansible-playbook ansible/playbooks/update_all_packages_latest.yaml
+ansible-playbook ansible/playbooks/bootstrap-control.yaml
+ansible-playbook ansible/playbooks/no_subscription.yaml
+ansible-playbook ansible/playbooks/sync-atlas-dns.yaml
 ```
 
 Used the UI to create a cluster and copied the join info to each node with UI
 
-had to debug babbage it wasn't reporting stats 
+had to debug babbage it wasn't reporting stats
 
 first standardized on host files then ran through restart of certs and daemons
 
@@ -57,3 +57,9 @@ systemctl restart corosync
 systemctl restart pvestatd pvedaemon pveproxy
 systemctl status pvestatd
 ```
+
+## Notes
+
+### 2026-04-10
+
+For memex to be a critical host I needed to remove it from the cluster as a stand alone node. With this there isn't a wait for Quorem to auto-start the VMs hosted on there.
