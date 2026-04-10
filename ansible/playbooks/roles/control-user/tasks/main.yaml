@@ -6,6 +6,7 @@
     append: yes
     state: present
     create_home: yes
+    password_lock: true
 
 - name: Check if visudo is available
   ansible.builtin.stat:

@@ -62,4 +62,6 @@ systemctl status pvestatd
 
 ### 2026-04-10
 
-For memex to be a critical host I needed to remove it from the cluster as a stand alone node. With this there isn't a wait for Quorem to auto-start the VMs hosted on there.
+- For memex to be a critical host I needed to remove it from the cluster as a stand alone node. With this there isn't a wait for Quorem to auto-start the VMs hosted on there.
+
+- Updated `control` user with passwordless login and using local ssh key `id_rsa_control`
