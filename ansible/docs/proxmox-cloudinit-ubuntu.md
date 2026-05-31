@@ -46,6 +46,10 @@ Create the `agent` Ubuntu 22.04 guest on `minsky`:
 ansible-playbook ansible/playbooks/proxmox-create-cloudinit-vm.yml -e @ansible/vars/minsky-agent-ubuntu2204.yml -l minsky
 ```
 
+`vm_name` is used for both the Proxmox VM name and the guest OS
+hostname. For the `agent` vars, the VM is named `agent` and cloud-init
+sets the Ubuntu hostname to `agent`.
+
 The `agent` vars omit `vmid`, so the role derives a deterministic VMID
 from `vm_name`. If the derived ID already exists and belongs to a
 different VM, the role asks Proxmox for the next available ID with:
@@ -120,5 +124,5 @@ ci_groups: sudo
 
 The role writes a Proxmox cloud-init user-data snippet to
 `/var/lib/vz/snippets` and attaches it with `cicustom`, which makes the
-`control` user's sudo access explicit instead of relying on image
-defaults.
+guest hostname and the `control` user's sudo access explicit instead of
+relying on image defaults.

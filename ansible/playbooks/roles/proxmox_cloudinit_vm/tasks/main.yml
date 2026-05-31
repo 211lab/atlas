@@ -63,6 +63,9 @@
     mode: "0644"
     content: |
       #cloud-config
+      hostname: {{ vm_name }}
+      preserve_hostname: false
+      manage_etc_hosts: true
       users:
         - default
         - name: {{ ci_user }}
@@ -129,6 +132,21 @@
       -nameserver {{ dns_server }}
       -ipconfig0 {{ ipconfig0 }}
       {{ (ci_userdata_enabled | bool) | ternary('-cicustom user=' ~ ci_userdata_storage ~ ':snippets/' ~ ci_userdata_file, '') }}
+  when: vm_status.rc != 0 or destroy_existing_vm | bool
+  changed_when: true
+
+- name: Update existing VM Cloud Init settings
+  ansible.builtin.command:
+    cmd: >
+      qm set {{ vmid_resolved }}
+      -name {{ vm_name }}
+      -ciuser {{ ci_user }}
+      -nameserver {{ dns_server }}
+      -ipconfig0 {{ ipconfig0 }}
+      {{ (ci_userdata_enabled | bool) | ternary('-cicustom user=' ~ ci_userdata_storage ~ ':snippets/' ~ ci_userdata_file, '') }}
+  when:
+    - vm_status.rc == 0
+    - not destroy_existing_vm | bool
   changed_when: true
 
 - name: Set Cloud Init password when provided
@@ -140,11 +158,14 @@
 - name: Resize VM disk
   ansible.builtin.command:
     cmd: qm resize {{ vmid_resolved }} scsi0 {{ vm_disk_size }}
+  when: vm_status.rc != 0 or destroy_existing_vm | bool
   failed_when: false
   changed_when: true
 
 - name: Start VM
   ansible.builtin.command:
     cmd: qm start {{ vmid_resolved }}
-  when: start_vm | bool
+  when:
+    - start_vm | bool
+    - vm_status.rc != 0 or destroy_existing_vm | bool
   changed_when: true
