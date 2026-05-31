@@ -12,3 +12,5 @@ nodes:
   hosts:
     memex:
       ansible_host: 10.0.0.105
+    minsky:
+      ansible_host: 10.0.0.106
