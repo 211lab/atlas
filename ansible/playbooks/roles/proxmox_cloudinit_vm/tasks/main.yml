@@ -1,0 +1,150 @@
+---
+- name: Derive deterministic VMID from VM name
+  ansible.builtin.set_fact:
+    vmid_derived: "{{ vmid_base + (((vm_name | hash('sha1'))[:vmid_hash_prefix_length] | int(base=16)) % vmid_range) }}"
+  when: vmid | string | length == 0
+
+- name: Select requested VMID
+  ansible.builtin.set_fact:
+    vmid_candidate: "{{ (vmid | string | length > 0) | ternary(vmid, vmid_derived) }}"
+
+- name: Check if requested VMID already exists
+  ansible.builtin.command:
+    cmd: qm status {{ vmid_candidate }}
+  register: vmid_candidate_status
+  failed_when: false
+  changed_when: false
+
+- name: Read existing config for requested VMID
+  ansible.builtin.command:
+    cmd: qm config {{ vmid_candidate }}
+  register: vmid_candidate_config
+  when: vmid_candidate_status.rc == 0
+  changed_when: false
+
+- name: Fall back to Proxmox nextid when derived VMID belongs to another VM
+  ansible.builtin.command:
+    cmd: pvesh get /cluster/nextid
+  register: proxmox_nextid
+  when:
+    - vmid | string | length == 0
+    - vmid_candidate_status.rc == 0
+    - "'name: ' ~ vm_name not in (vmid_candidate_config.stdout | default(''))"
+  changed_when: false
+
+- name: Set resolved VMID
+  ansible.builtin.set_fact:
+    vmid_resolved: "{{ proxmox_nextid.stdout | default(vmid_candidate, true) }}"
+
+- name: Ensure image directory exists
+  ansible.builtin.file:
+    path: "{{ image_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Download cloud image
+  ansible.builtin.get_url:
+    url: "{{ image_url }}"
+    dest: "{{ image_dir }}/{{ image_name }}"
+    mode: "0644"
+
+- name: Ensure Cloud Init snippet directory exists
+  ansible.builtin.file:
+    path: "{{ ci_userdata_dir }}"
+    state: directory
+    mode: "0755"
+  when: ci_userdata_enabled | bool
+
+- name: Create Cloud Init user-data snippet
+  ansible.builtin.copy:
+    dest: "{{ ci_userdata_dir }}/{{ ci_userdata_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      #cloud-config
+      users:
+        - default
+        - name: {{ ci_user }}
+          shell: /bin/bash
+          groups: {{ ci_groups }}
+          sudo: "{{ ci_sudo }}"
+          lock_passwd: true
+          ssh_authorized_keys:
+            - {{ lookup('file', ci_ssh_public_key_file) }}
+  when: ci_userdata_enabled | bool
+
+- name: Check if VM already exists
+  ansible.builtin.command:
+    cmd: qm status {{ vmid_resolved }}
+  register: vm_status
+  failed_when: false
+  changed_when: false
+
+- name: Stop existing VM
+  ansible.builtin.command:
+    cmd: qm stop {{ vmid_resolved }}
+  when:
+    - vm_status.rc == 0
+    - destroy_existing_vm | bool
+  failed_when: false
+  changed_when: true
+
+- name: Destroy existing VM
+  ansible.builtin.command:
+    cmd: qm destroy {{ vmid_resolved }}
+  when:
+    - vm_status.rc == 0
+    - destroy_existing_vm | bool
+  changed_when: true
+
+- name: Create VM shell
+  ansible.builtin.command:
+    cmd: qm create {{ vmid_resolved }}
+  when: vm_status.rc != 0 or destroy_existing_vm | bool
+  changed_when: true
+
+- name: Import cloud image disk
+  ansible.builtin.command:
+    cmd: qm importdisk {{ vmid_resolved }} {{ image_dir }}/{{ image_name }} {{ storage }}
+  when: vm_status.rc != 0 or destroy_existing_vm | bool
+  changed_when: true
+
+- name: Configure VM hardware and Cloud Init
+  ansible.builtin.command:
+    cmd: >
+      qm set {{ vmid_resolved }}
+      -name {{ vm_name }}
+      -memory {{ vm_memory }}
+      -cores {{ vm_cores }}
+      -net0 virtio,bridge={{ bridge }}
+      -scsihw virtio-scsi-pci
+      -scsi0 {{ storage }}:vm-{{ vmid_resolved }}-disk-0
+      -ide2 {{ storage }}:cloudinit
+      -boot order=scsi0
+      -serial0 socket
+      -vga serial0
+      -agent enabled=1
+      -ciuser {{ ci_user }}
+      -nameserver {{ dns_server }}
+      -ipconfig0 {{ ipconfig0 }}
+      {{ (ci_userdata_enabled | bool) | ternary('-cicustom user=' ~ ci_userdata_storage ~ ':snippets/' ~ ci_userdata_file, '') }}
+  changed_when: true
+
+- name: Set Cloud Init password when provided
+  ansible.builtin.command:
+    cmd: qm set {{ vmid_resolved }} -cipassword {{ ci_password }}
+  when: ci_password | length > 0
+  changed_when: true
+
+- name: Resize VM disk
+  ansible.builtin.command:
+    cmd: qm resize {{ vmid_resolved }} scsi0 {{ vm_disk_size }}
+  failed_when: false
+  changed_when: true
+
+- name: Start VM
+  ansible.builtin.command:
+    cmd: qm start {{ vmid_resolved }}
+  when: start_vm | bool
+  changed_when: true

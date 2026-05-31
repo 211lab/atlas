@@ -1,0 +1,31 @@
+---
+vmid: ""
+vmid_base: 10000
+vmid_range: 90000
+vmid_hash_prefix_length: 8
+vm_name: ubuntu-2204-ci
+vm_memory: 4096
+vm_cores: 2
+vm_disk_size: 32G
+
+storage: local-lvm
+bridge: vmbr0
+
+image_url: https://cloud-images.ubuntu.com/releases/jammy/release/ubuntu-22.04-server-cloudimg-amd64.img
+image_name: ubuntu-22.04-server-cloudimg-amd64.img
+image_dir: /var/lib/vz/template/iso
+
+ci_user: control
+ci_password: ""
+ci_ssh_public_key_file: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa_control.pub"
+ci_sudo: "ALL=(ALL) NOPASSWD:ALL"
+ci_groups: sudo
+ci_userdata_enabled: true
+ci_userdata_storage: local
+ci_userdata_dir: /var/lib/vz/snippets
+ci_userdata_file: "{{ vmid_resolved }}-user-data.yml"
+dns_server: 10.0.0.1
+ipconfig0: ip=dhcp
+
+start_vm: true
+destroy_existing_vm: false

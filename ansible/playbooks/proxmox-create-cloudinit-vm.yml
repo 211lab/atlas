@@ -1,0 +1,7 @@
+---
+- name: Create reusable Proxmox Cloud Init VM
+  hosts: "{{ target_host }}"
+  become: true
+
+  roles:
+    - proxmox_cloudinit_vm
