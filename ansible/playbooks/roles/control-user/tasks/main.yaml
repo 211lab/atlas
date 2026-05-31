@@ -1,3 +1,9 @@
+- name: Ensure sudo is installed
+  ansible.builtin.apt:
+    name: sudo
+    state: present
+    update_cache: true
+
 - name: Create control user
   ansible.builtin.user:
     name: control
@@ -7,6 +13,12 @@
     state: present
     create_home: yes
     password_lock: true
+
+- name: Ensure control user password remains locked
+  ansible.builtin.command:
+    cmd: passwd -l control
+  register: control_passwd_lock
+  changed_when: "'password expiry information changed' in control_passwd_lock.stderr"
 
 - name: Check if visudo is available
   ansible.builtin.stat:
@@ -22,18 +34,30 @@
     mode: "0440"
     validate: "{{ visudo_check.stat.exists | ternary('visudo -cf %s', omit) }}"
 
-- name: Ensure .ssh directory exists
-  ansible.builtin.file:
-    path: /home/control/.ssh
-    state: directory
-    owner: control
-    group: control
-    mode: "0700"
-
 - name: Install control server public key
+  ansible.posix.authorized_key:
+    user: control
+    key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa_control.pub') }}"
+    state: present
+    manage_dir: true
+    exclusive: true
+
+- name: Ensure SSH server config directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Disable SSH password authentication for control user
   ansible.builtin.copy:
-    src: "{{ lookup('env','HOME') }}/.ssh/id_rsa_control.pub"
-    dest: /home/control/.ssh/authorized_keys
-    owner: control
-    group: control
-    mode: "0600"
+    dest: /etc/ssh/sshd_config.d/99-control-user.conf
+    content: |
+      Match User control
+          PasswordAuthentication no
+    owner: root
+    group: root
+    mode: "0644"
+    validate: sshd -t -f %s
+  notify: reload ssh
