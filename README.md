@@ -2,7 +2,7 @@
 
 Configuration management 211 Lab Proxmox cluster
 
-## Resouces
+## Resources
 
 https://github.com/lae/ansible-role-proxmox/tree/develop
 
@@ -31,15 +31,30 @@ https://github.com/sbarbett/pihole-ansible
 
 ## Process
 
-Start with each node fresh wiht proxmox 9 iso
+Start with each node fresh with the Proxmox ISO.
 
 Set IP of nodes in the proxmox setup `10.0.0.10X`
 
-Run ansible scripts
+Bootstrap the `control` user with root credentials first. This is the
+one run that may ask for the root SSH password:
+
+```sh
+ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -o BatchMode=no" \
+ansible-playbook ansible/playbooks/bootstrap-control.yaml -u root -k
+```
+
+After bootstrap, Ansible uses `control` and `~/.ssh/id_rsa_control` by
+default. Verify passwordless SSH and sudo:
+
+```sh
+ansible all -m ping -o
+ansible all -b -m command -a 'id -u' -o
+```
+
+Run the regular maintenance playbooks:
 
 ```sh
 ansible-playbook ansible/playbooks/update_all_packages_latest.yaml
-ansible-playbook ansible/playbooks/bootstrap-control.yaml
 ansible-playbook ansible/playbooks/no_subscription.yaml
 ansible-playbook ansible/playbooks/sync-atlas-dns.yaml
 ```
@@ -65,3 +80,8 @@ systemctl status pvestatd
 - For memex to be a critical host I needed to remove it from the cluster as a stand alone node. With this there isn't a wait for Quorem to auto-start the VMs hosted on there.
 
 - Updated `control` user with passwordless login and using local ssh key `id_rsa_control`
+
+## Docs
+
+- [Control user bootstrap](ansible/docs/control-user.md)
+- [Proxmox Ubuntu 22.04 cloud-init VMs](ansible/docs/proxmox-cloudinit-ubuntu.md)
