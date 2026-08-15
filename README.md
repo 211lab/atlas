@@ -29,6 +29,10 @@ https://github.com/sbarbett/pihole-ansible
 [6]: https://www.olcf.ornl.gov/olcf-resources/compute-systems/titan/?utm_source=chatgpt.com "Titan - Oak Ridge Leadership Computing Facility"
 [7]: https://en.wikipedia.org/wiki/Charles_Babbage?utm_source=chatgpt.com "Charles Babbage"
 
+## Current infrastructure
+
+The deployed Kubernetes platform is documented in [Kubernetes control plane](docs/kubernetes-control-plane.md). That runbook is the source of truth for the HA K3s topology, API VIP, control-plane access, monitoring, storage status, and operational guardrails.
+
 ## Process
 
 Start with each node fresh with the Proxmox ISO.
@@ -83,5 +87,6 @@ systemctl status pvestatd
 
 ## Docs
 
+- [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
 - [Control user bootstrap](ansible/docs/control-user.md)
 - [Proxmox Ubuntu 22.04 cloud-init VMs](ansible/docs/proxmox-cloudinit-ubuntu.md)
