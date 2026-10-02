@@ -33,6 +33,8 @@ https://github.com/sbarbett/pihole-ansible
 
 The deployed Kubernetes platform is documented in [Kubernetes control plane](docs/kubernetes-control-plane.md). That runbook is the source of truth for the HA K3s topology, API VIP, control-plane access, monitoring, storage status, and operational guardrails.
 
+The self-hosted git forge (Gitea), build runner, and Argo CD delivery pipeline are documented in [GitOps platform](docs/gitops-platform.md). Helm values and Argo CD Applications live under `gitops/` and `helm/`.
+
 ## Process
 
 Start with each node fresh with the Proxmox ISO.
@@ -87,6 +89,7 @@ systemctl status pvestatd
 ## Docs
 
 - [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
+- [GitOps platform](docs/gitops-platform.md) — Gitea forge, container registry, Actions CI, Argo CD app-of-apps, image promotion, secrets, and storage
 - [Control user bootstrap](ansible/docs/control-user.md)
 - [Proxmox Ubuntu 22.04 cloud-init VMs](ansible/docs/proxmox-cloudinit-ubuntu.md)
 - [SSH config from inventory](ansible/docs/ssh-config-from-inventory.md)
