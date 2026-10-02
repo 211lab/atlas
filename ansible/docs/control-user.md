@@ -55,19 +55,10 @@ The `control-user` role:
 
 ## Normal Ansible Use
 
-After bootstrap, `ansible.cfg` uses:
-
-```ini
-remote_user = control
-ask_pass = false
-private_key_file = ~/.ssh/id_rsa_control
-```
-
-Verify SSH and passwordless sudo:
+Default operations use `root` over SSH with password prompts.
 
 ```sh
-ansible all -m ping -o
-ansible all -b -m command -a 'id -u' -o
+ansible all -m ping -o -k
 ```
 
-The sudo check should return `0` for each host.
+The `control` user remains a service account configured by this role.

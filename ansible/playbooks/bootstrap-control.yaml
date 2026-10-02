@@ -1,5 +1,5 @@
 - name: Bootstrap control user across fleet
-  hosts: all
+  hosts: baremetal:services
   gather_facts: false
   become: true
   roles:

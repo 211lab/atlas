@@ -47,12 +47,11 @@ ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -o BatchMode=no
 ansible-playbook ansible/playbooks/bootstrap-control.yaml -u root -k
 ```
 
-After bootstrap, Ansible uses `control` and `~/.ssh/id_rsa_control` by
-default. Verify passwordless SSH and sudo:
+Default Ansible access uses `root` over SSH with password auth prompts.
+Verify connectivity:
 
 ```sh
-ansible all -m ping -o
-ansible all -b -m command -a 'id -u' -o
+ansible all -m ping -o -k
 ```
 
 Run the regular maintenance playbooks:
@@ -90,3 +89,4 @@ systemctl status pvestatd
 - [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
 - [Control user bootstrap](ansible/docs/control-user.md)
 - [Proxmox Ubuntu 22.04 cloud-init VMs](ansible/docs/proxmox-cloudinit-ubuntu.md)
+- [SSH config from inventory](ansible/docs/ssh-config-from-inventory.md)

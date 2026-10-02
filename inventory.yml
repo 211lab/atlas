@@ -1,4 +1,6 @@
-atlas:
+baremetal:
+  vars:
+    ansible_user: root
   hosts:
     turing:
       ansible_host: 10.0.0.101
@@ -8,9 +10,24 @@ atlas:
       ansible_host: 10.0.0.103
     babbage:
       ansible_host: 10.0.0.104
-nodes:
-  hosts:
     memex:
       ansible_host: 10.0.0.105
     minsky:
       ansible_host: 10.0.0.106
+
+services:
+  vars:
+    ansible_user: control
+  hosts:
+    agent:
+      ansible_host: 10.0.10.155
+
+local:
+  vars:
+    ansible_user: wsl
+  hosts:
+    wsl_local:
+      ansible_host: 127.0.0.1
+      ansible_connection: local
+      ansible_become: true
+      ansible_become_method: sudo

@@ -1,5 +1,5 @@
 - name: update packages
-  hosts: all
+  hosts: baremetal:services:local
   tasks:
     - name: Update all packages to their latest version
       ansible.builtin.apt:

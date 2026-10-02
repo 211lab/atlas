@@ -1,6 +1,6 @@
 ---
 - name: Configure Proxmox for no-subscription use
-  hosts: atlas
+  hosts: baremetal
   become: true
   tasks:
     - name: Disable Proxmox enterprise repository by renaming

@@ -1,6 +1,6 @@
 ---
 - name: Configure hostnames and peer awareness
-  hosts: all
+  hosts: baremetal:services:local
   become: true
   vars:
     hosts_file: /etc/hosts
@@ -23,7 +23,7 @@
     - name: Build peer hosts list with FQDN + shortname
       ansible.builtin.set_fact:
         peer_hosts: |
-          {% for host in groups['all'] %}
+          {% for host in ansible_play_hosts_all %}
           {{ hostvars[host].ansible_host }} {{ hostvars[host].hostname | default(host ~ '.lan') }} {{ (hostvars[host].hostname | default(host ~ '.lan')).split('.')[0] }}
           {% endfor %}
 
