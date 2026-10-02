@@ -40,4 +40,4 @@ statefulset:
         readOnly: true
 
 global:
-  storageClass: local-path
+  storageClass: truenas-nfs

@@ -1,9 +1,9 @@
 # TrueNAS-backed NFS StorageClass for Atlas.
 #
-# NOTE: `share` below is a placeholder. Create a dedicated dataset and NFS
-# export on TrueNAS (10.0.10.26) that allows the k3s node addresses
-# (10.0.0.110-113), then update `share` to the real export path. The csi-driver-nfs
-# provisioner creates a subdirectory per PVC.
+# Dedicated dataset and NFS export on TrueNAS (10.0.10.26):
+#   dataset: data/atlas-k8s
+#   export:  /mnt/data/atlas-k8s  -> 10.0.0.0/24 and 10.0.10.0/24, mapall root
+# The csi-driver-nfs provisioner creates a subdirectory per PVC.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -11,7 +11,7 @@ metadata:
 provisioner: nfs.csi.k8s.io
 parameters:
   server: 10.0.10.26
-  share: /mnt/tank/atlas-k8s
+  share: /mnt/data/atlas-k8s
   subDir: ${pvc.metadata.namespace}/${pvc.metadata.name}
 reclaimPolicy: Delete
 volumeBindingMode: Immediate

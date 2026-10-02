@@ -1,9 +1,8 @@
 # Gitea helm values (atlas)
 # Chart: gitea/gitea   Verified: 12.7.0 (Gitea 1.27.0)
 #
-# Storage note: live stateful workloads use `local-path` until the TrueNAS NFS
-# export exists. Switch the two `storageClass` fields below to `truenas-nfs`
-# once gitops/manifests/storageclass-truenas.yaml points at a real share.
+# Storage: stateful data lives on the TrueNAS NFS dataset `data/atlas-k8s`
+# via the `truenas-nfs` StorageClass.
 
 gitea:
   admin:
@@ -40,7 +39,7 @@ resources:
 
 persistence:
   enabled: true
-  storageClass: local-path
+  storageClass: truenas-nfs
   size: 10Gi
 
 postgresql-ha:
@@ -52,14 +51,19 @@ valkey-cluster:
 
 postgresql:
   enabled: true
+  volumePermissions:
+    enabled: true
   auth:
     existingSecret: gitea-postgresql
     database: gitea
     username: gitea
   primary:
+    extraEnvVars:
+      - name: BITNAMI_DEBUG
+        value: "true"
     persistence:
       enabled: true
-      storageClass: local-path
+      storageClass: truenas-nfs
       size: 8Gi
     resources:
       requests:
