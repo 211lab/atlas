@@ -3,13 +3,6 @@ kind: Application
 metadata:
   name: demo-app
   namespace: argocd
-  annotations:
-    argocd-image-updater.argoproj.io/image-list: demo=registry.atlas.lan/atlas-admin/demo-app
-    argocd-image-updater.argoproj.io/demo.update-strategy: semver
-    argocd-image-updater.argoproj.io/demo.helm.image-name: image.repository
-    argocd-image-updater.argoproj.io/demo.helm.image-tag: image.tag
-    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/gitea-writeback
-    argocd-image-updater.argoproj.io/write-back-target: helmvalues
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

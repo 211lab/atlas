@@ -1,0 +1,22 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: demo-app
+  namespace: argocd
+spec:
+  applicationRefs:
+    - namePattern: demo-app
+      images:
+        - alias: demo
+          imageName: registry.atlas.lan/atlas-admin/demo-app
+          commonUpdateSettings:
+            updateStrategy: semver
+          manifestTargets:
+            helm:
+              name: image.repository
+              tag: image.tag
+  writeBackConfig:
+    method: git:secret:argocd/gitea-writeback
+    gitConfig:
+      branch: main
+      writeBackTarget: helmvalues:./examples/demo-app/chart/values.yaml
