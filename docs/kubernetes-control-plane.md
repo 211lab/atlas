@@ -1,20 +1,20 @@
-Exit code: 0
-Wall time: 0.1 seconds
-Output:
 # Atlas Kubernetes control-plane access runbook
 
 > Scope: Atlas is a four-host Proxmox cluster running a highly available K3s control plane. This is a tailored operational guide. It contains no passwords, private keys, node-join tokens, or kubeconfig credential data.
 
 ## Current deployed infrastructure
 
+Verified 2026-10-02 from the Atlas API VIP (`https://10.0.0.108:6443`).
+
 | Component | Status | Source-of-truth detail |
 | --- | --- | --- |
-| K3s | Deployed | v1.36.3+k3s1: three embedded-etcd control-plane VMs and one worker |
+| K3s | Deployed | v1.36.3+k3s1: three embedded-etcd control-plane VMs and one worker, all `Ready` |
 | Kubernetes API | Deployed | kube-vip virtual IP: https://10.0.0.108:6443 |
 | Secret encryption | Deployed | Sealed Secrets encryption at rest |
+| Helm releases | Deployed | `atlas-monitoring` (monitoring), `csi-driver-nfs`, `traefik`, `traefik-crd` (kube-system) |
 | NFS CSI | Deployed | Driver is installed; no default StorageClass exists yet |
 | TrueNAS | Pending storage configuration | TrueNAS is at 10.0.10.26. Create a dedicated dataset/export and configure credentials before provisioning Kubernetes volumes; do not reuse the existing movies export |
-| Prometheus and Grafana | Deployed | kube-prometheus-stack runs in the monitoring namespace |
+| Prometheus and Grafana | Deployed | `atlas-monitoring` kube-prometheus-stack 88.3.0 (app v0.93.0) runs in the monitoring namespace |
 | Grafana access | Deployed | Network UI at http://10.0.0.110:3000 with anonymous Viewer access; administrator login remains available |
 | K3s VM metrics | Deployed | Node Exporter DaemonSet runs across the K3s nodes |
 | Physical PVE metrics | Deployed | Node Exporter runs on all four PVE hosts and Prometheus scrapes the atlas-proxmox-node-exporter job |
@@ -27,18 +27,18 @@ Atlas has three separate administration layers. A credential for one layer does 
 | Layer | Account or credential | What it administers |
 | --- | --- | --- |
 | Proxmox | root at a PVE host | Physical PVE host, VMs, storage, networks, and VM power state |
-| Guest OS | control at a K3s VM | Ubuntu VM commands permitted through sudo |
+| Guest OS | ubuntu at a K3s VM | Ubuntu VM commands permitted through sudo |
 | Kubernetes | Admin kubeconfig | Kubernetes resources, RBAC, workloads, and cluster settings |
 
 This guide assumes:
 
 - You can authenticate as root to the Proxmox hosts when needed.
-- The VM template creates a control user with SSH access and sudo privileges.
-- You have the appropriate SSH private key on the workstation.
+- The K3s VMs run a guest user with SSH access and passwordless sudo. On the current build that user is `ubuntu`; the `control` service account exists on the Ansible inventory but is not currently authorized for SSH on the K3s VMs.
+- You have the appropriate SSH private key on the workstation (`~/.ssh/id_rsa_control`).
 - You are using Titan, currently 10.0.10.166, or another system that can reach the Atlas network.
 - Passwords and keys are never stored in scripts, Git, shell history, tickets, or this document.
 
-If an existing VM uses a different guest username, change only the ControlUser variable in the examples. Do not use Proxmox root as a Kubernetes credential.
+If a VM uses a different guest username, change only the `ControlUser` variable in the examples. Do not use Proxmox root as a Kubernetes credential.
 
 ## 2. Atlas topology
 
@@ -67,49 +67,61 @@ The three control-plane VMs use embedded etcd. Keep at least two of them online 
 
 Use this when you only need a few administrative commands or when the API VIP is unavailable. The bundled K3s kubectl already knows the local administrator configuration.
 
-~~~powershell
-$ControlUser = 'control'
-$ControlPlane = '10.0.0.110'
-$SshKey = Join-Path $env:USERPROFILE '.ssh\id_rsa_control'
-ssh -i $SshKey "$ControlUser@$ControlPlane" 'sudo /usr/local/bin/k3s kubectl get nodes -o wide'
+~~~sh
+ControlUser=ubuntu
+ControlPlane=10.0.0.110
+SshKey=~/.ssh/id_rsa_control
+ssh -i "$SshKey" "$ControlUser@$ControlPlane" 'sudo -n /usr/local/bin/k3s kubectl get nodes -o wide'
 ~~~
 
 Other useful direct commands:
 
-~~~powershell
-ssh -i $SshKey "$ControlUser@10.0.0.110" 'sudo /usr/local/bin/k3s kubectl get pods -A'
-ssh -i $SshKey "$ControlUser@10.0.0.111" 'sudo /usr/local/bin/k3s kubectl -n monitoring get pods'
-ssh -i $SshKey "$ControlUser@10.0.0.112" 'sudo /usr/local/bin/k3s etcd-snapshot ls'
+~~~sh
+ssh -i "$SshKey" ubuntu@10.0.0.110 'sudo -n /usr/local/bin/k3s kubectl get pods -A'
+ssh -i "$SshKey" ubuntu@10.0.0.111 'sudo -n /usr/local/bin/k3s kubectl -n monitoring get pods'
+ssh -i "$SshKey" ubuntu@10.0.0.112 'sudo -n /usr/local/bin/k3s etcd-snapshot ls'
 ~~~
 
-The K3s administrator kubeconfig is root-owned. If control does not have passwordless sudo, SSH will request that account's sudo password.
+The K3s administrator kubeconfig is root-owned. The current `ubuntu` guest user has passwordless sudo, so `sudo -n` succeeds without an interactive prompt.
 
-## 4. Configure kubectl on Titan or another Windows workstation
+## 4. Workstation access
 
-### 4.1 Check the client version
+### 4.1 Install clients
 
-Atlas currently runs Kubernetes v1.36.3+k3s1. Keep the workstation kubectl client within one minor version of the cluster.
+Atlas currently runs Kubernetes v1.36.3+k3s1. Keep the workstation kubectl client within one minor version of the cluster. helm is used for the installed releases listed above.
 
-~~~powershell
-kubectl version --client --output=yaml
-Get-Command kubectl
+On WSL/Titan the verified clients are:
+
+~~~sh
+# kubectl v1.36.3
+curl -fsSLo /tmp/kubectl https://dl.k8s.io/release/v1.36.3/bin/linux/amd64/kubectl
+install -m 0755 /tmp/kubectl ~/.local/bin/kubectl
+
+# helm v3.16.1
+curl -fsSLo /tmp/helm.tgz https://get.helm.sh/helm-v3.16.1-linux-amd64.tar.gz
+tar -C /tmp -xzf /tmp/helm.tgz
+install -m 0755 /tmp/linux-amd64/helm ~/.local/bin/helm
 ~~~
 
-Titan currently has a kubectl executable supplied by Docker Desktop. If it is absent or not compatible, install a current Windows client:
-
-~~~powershell
-winget install -e --id Kubernetes.kubectl
-kubectl version --client
-~~~
+`~/.local/bin` is already on the WSL PATH, so both commands resolve directly. Older clients bundled with Docker Desktop (`kubectl.exe` v1.32.2) or the WindowsApps winget shim (v1.29.1) are more than one minor version behind and should not be relied on.
 
 ### 4.2 Test connectivity first
+
+From WSL/Linux:
+
+~~~sh
+timeout 5 bash -c 'echo > /dev/tcp/10.0.0.108/6443' && echo "API VIP reachable"
+timeout 5 bash -c 'echo > /dev/tcp/10.0.0.110/22'  && echo "cp1 SSH reachable"
+~~~
+
+From Windows PowerShell:
 
 ~~~powershell
 Test-NetConnection -ComputerName 10.0.0.108 -Port 6443
 Test-NetConnection -ComputerName 10.0.0.110 -Port 22
 ~~~
 
-Both tests should return TcpTestSucceeded: True. If port 6443 fails, use the recovery path in section 7 before changing any kubeconfig.
+Both tests should succeed. If port 6443 fails, use the recovery path in section 7 before changing any kubeconfig.
 
 ### 4.3 Retrieve a separate Atlas administrator kubeconfig
 
@@ -121,16 +133,22 @@ K3s stores its built-in administrator kubeconfig on every control-plane VM at th
 
 That file normally has a local server address of https://127.0.0.1:6443. A copy used outside the VM must change only that server address to the VIP. Preserve the embedded certificate authority, client certificate, and client key exactly as copied.
 
-Do not overwrite a pre-existing default kubeconfig. On Titan, the current default path below points to an unrelated local endpoint, 127.0.0.1:57966:
+Do not overwrite a pre-existing default kubeconfig. On Titan, `C:\Users\Dave\.kube\config` points to an unrelated local minikube endpoint, 127.0.0.1:57966.
 
-~~~text
-C:\Users\Dave\.kube\config
+From WSL/Linux, create a separate Atlas config:
+
+~~~sh
+mkdir -p ~/.kube
+ssh -i ~/.ssh/id_rsa_control ubuntu@10.0.0.110 'sudo -n cat /etc/rancher/k3s/k3s.yaml' > ~/.kube/atlas-admin.yaml
+sed -i 's|https://127.0.0.1:6443|https://10.0.0.108:6443|' ~/.kube/atlas-admin.yaml
+chmod 600 ~/.kube/atlas-admin.yaml
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml config rename-context default atlas-admin
 ~~~
 
-Create a separate Atlas config instead:
+From Windows PowerShell:
 
 ~~~powershell
-$ControlUser = 'control'
+$ControlUser = 'ubuntu'
 $BootstrapControlPlane = '10.0.0.110'
 $ApiVip = '10.0.0.108'
 $SshKey = Join-Path $env:USERPROFILE '.ssh\id_rsa_control'
@@ -138,7 +156,7 @@ $KubeDirectory = Join-Path $env:USERPROFILE '.kube'
 $AtlasKubeconfig = Join-Path $KubeDirectory 'atlas-admin.yaml'
 
 New-Item -ItemType Directory -Force -Path $KubeDirectory | Out-Null
-ssh -i $SshKey "$ControlUser@$BootstrapControlPlane" 'sudo cat /etc/rancher/k3s/k3s.yaml' | Set-Content -LiteralPath $AtlasKubeconfig -Encoding ascii
+ssh -i $SshKey "$ControlUser@$BootstrapControlPlane" 'sudo -n cat /etc/rancher/k3s/k3s.yaml' | Set-Content -LiteralPath $AtlasKubeconfig -Encoding ascii
 
 $yaml = Get-Content -LiteralPath $AtlasKubeconfig -Raw
 $yaml = $yaml -replace 'https://127\.0\.0\.1:6443', ('https://' + $ApiVip + ':6443')
@@ -151,6 +169,8 @@ The copied file grants cluster-admin access. Treat it like an administrative SSH
 
 ### 4.4 Restrict the local file
 
+The WSL copy is already mode `600`. On Windows:
+
 ~~~powershell
 icacls $AtlasKubeconfig /inheritance:r
 icacls $AtlasKubeconfig /grant:r "$($env:USERNAME):(R,W)" "Administrators:(R,W)"
@@ -162,28 +182,25 @@ Never commit this file, attach it to a ticket, send it in chat, or paste its emb
 
 The safest habit is to name the config for each command:
 
-~~~powershell
-kubectl --kubeconfig $AtlasKubeconfig get nodes -o wide
-kubectl --kubeconfig $AtlasKubeconfig get pods -A
-kubectl --kubeconfig $AtlasKubeconfig get --raw='/readyz?verbose'
+~~~sh
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml get nodes -o wide
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml get pods -A
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml get --raw='/readyz?verbose'
 ~~~
 
-For the current PowerShell session:
+For the current shell session:
 
-~~~powershell
-$env:KUBECONFIG = $AtlasKubeconfig
+~~~sh
+export KUBECONFIG=~/.kube/atlas-admin.yaml
 kubectl config current-context
 kubectl cluster-info
 kubectl get nodes -o wide
 ~~~
 
-Optional convenience function:
+Optional convenience alias:
 
-~~~powershell
-function k {
-  & kubectl --kubeconfig $AtlasKubeconfig @args
-}
-
+~~~sh
+alias k='kubectl --kubeconfig ~/.kube/atlas-admin.yaml'
 k get nodes
 k -n monitoring get pods
 ~~~
@@ -194,23 +211,27 @@ Avoid setting Atlas as a permanent, machine-wide default until you have decided 
 
 Run these checks after creating or refreshing the config:
 
-~~~powershell
-kubectl --kubeconfig $AtlasKubeconfig config view --minify
-kubectl --kubeconfig $AtlasKubeconfig get nodes -o wide
-kubectl --kubeconfig $AtlasKubeconfig get pods -A
-kubectl --kubeconfig $AtlasKubeconfig -n monitoring get scrapeconfig
+~~~sh
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml config view --minify
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml get nodes -o wide
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml get pods -A
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml -n monitoring get scrapeconfig
+helm --kubeconfig ~/.kube/atlas-admin.yaml list -A
 ~~~
 
-Expected nodes:
+Expected nodes (verified 2026-10-02):
 
 ~~~text
-atlas-k3s-cp1       Ready   control-plane,etcd   10.0.0.110
-atlas-k3s-cp2       Ready   control-plane,etcd   10.0.0.111
-atlas-k3s-cp3       Ready   control-plane,etcd   10.0.0.112
-atlas-k3s-worker1   Ready                       10.0.0.113
+NAME                STATUS   ROLES                AGE   VERSION        INTERNAL-IP   OS-IMAGE             CONTAINER-RUNTIME
+atlas-k3s-cp1       Ready    control-plane,etcd   48d   v1.36.3+k3s1   10.0.0.110    Ubuntu 24.04.4 LTS   containerd://2.3.2-k3s2
+atlas-k3s-cp2       Ready    control-plane,etcd   48d   v1.36.3+k3s1   10.0.0.111    Ubuntu 24.04.4 LTS   containerd://2.3.2-k3s2
+atlas-k3s-cp3       Ready    control-plane,etcd   48d   v1.36.3+k3s1   10.0.0.112    Ubuntu 24.04.4 LTS   containerd://2.3.2-k3s2
+atlas-k3s-worker1   Ready    worker               48d   v1.36.3+k3s1   10.0.0.113    Ubuntu 24.04.4 LTS   containerd://2.3.2-k3s2
 ~~~
 
-The active cluster endpoint should be https://10.0.0.108:6443, never 127.0.0.1, when the command runs from Titan.
+Expected namespaces: `default`, `kube-node-lease`, `kube-public`, `kube-system`, `monitoring`.
+
+The active cluster endpoint should be https://10.0.0.108:6443, never 127.0.0.1, when the command runs from Titan or WSL.
 
 ## 6. Proxmox root access
 
@@ -218,8 +239,8 @@ Proxmox root is for infrastructure and recovery. It can inspect or control VMs b
 
 ### 6.1 Inspect PVE and VM state
 
-~~~powershell
-$PveHost = '10.0.0.101'
+~~~sh
+PveHost=10.0.0.101
 ssh root@$PveHost 'pvecm status; qm list'
 ssh root@$PveHost 'qm status 201; qm config 201'
 ~~~
@@ -233,28 +254,30 @@ Lovelace  10.0.0.103   VMID 203   atlas-k3s-cp3
 Babbage   10.0.0.104   VMID 204   atlas-k3s-worker1
 ~~~
 
+PVE root is a password credential; it is not authorized by `~/.ssh/id_rsa_control`. Expect a password prompt rather than key-based login.
+
 ### 6.2 Prefer graceful VM operations
 
-~~~powershell
+~~~sh
 ssh root@10.0.0.101 'qm shutdown 201'
 ssh root@10.0.0.101 'qm status 201'
 ssh root@10.0.0.101 'qm start 201'
 ~~~
 
-Avoid qm stop unless the guest is unresponsive; it is an abrupt power-off.
+Avoid `qm stop` unless the guest is unresponsive; it is an abrupt power-off.
 
 For VMIDs 201, 202, and 203, never deliberately take down more than one at a time. Validate recovery before doing further maintenance:
 
-~~~powershell
-kubectl --kubeconfig $AtlasKubeconfig get nodes
-ssh -i $SshKey "$ControlUser@10.0.0.110" 'sudo /usr/local/bin/k3s etcd-snapshot ls'
+~~~sh
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml get nodes
+ssh -i ~/.ssh/id_rsa_control ubuntu@10.0.0.110 'sudo -n /usr/local/bin/k3s etcd-snapshot ls'
 ~~~
 
 ### 6.3 Console recovery
 
 If a serial console is configured, attempt:
 
-~~~powershell
+~~~sh
 ssh -t root@10.0.0.101 'qm terminal 201'
 ~~~
 
@@ -266,7 +289,7 @@ If no serial console exists, use the VM Console in the Proxmox web UI. Console a
 
 1. Confirm that the control-plane VMs are running:
 
-   ~~~powershell
+   ~~~sh
    ssh root@10.0.0.101 'qm status 201'
    ssh root@10.0.0.102 'qm status 202'
    ssh root@10.0.0.103 'qm status 203'
@@ -274,8 +297,8 @@ If no serial console exists, use the VM Console in the Proxmox web UI. Console a
 
 2. SSH to any surviving control-plane VM and use its local K3s client:
 
-   ~~~powershell
-   ssh -i $SshKey "$ControlUser@10.0.0.110" 'sudo /usr/local/bin/k3s kubectl get nodes -o wide'
+   ~~~sh
+   ssh -i ~/.ssh/id_rsa_control ubuntu@10.0.0.110 'sudo -n /usr/local/bin/k3s kubectl get nodes -o wide'
    ~~~
 
 3. If cp1 is unavailable, use cp2 or cp3. Do not reset etcd, rebuild a control-plane node, or alter kube-vip just because one control-plane VM is down.
@@ -286,30 +309,30 @@ If no serial console exists, use the VM Console in the Proxmox web UI. Console a
 
 Inspect the active configuration:
 
-~~~powershell
-kubectl --kubeconfig $AtlasKubeconfig config view --minify
+~~~sh
+kubectl --kubeconfig ~/.kube/atlas-admin.yaml config view --minify
 ~~~
 
 Ensure that the external configuration uses https://10.0.0.108:6443. Do not solve this by setting insecure-skip-tls-verify. Correct the endpoint or certificate configuration instead.
 
 ### kubectl times out or reports connection refused
 
-- Run Test-NetConnection 10.0.0.108 -Port 6443.
+- Confirm the API VIP is listening: `bash -c 'echo > /dev/tcp/10.0.0.108/6443'`.
 - Check that at least two control-plane VMs are online.
 - Use node-local kubectl through SSH to determine whether the Kubernetes API itself is healthy.
 - Only after the local API works, inspect kube-vip:
 
-  ~~~powershell
-  ssh -i $SshKey "$ControlUser@10.0.0.110" 'sudo /usr/local/bin/k3s kubectl -n kube-system get pods -l app.kubernetes.io/name=kube-vip -o wide'
+  ~~~sh
+  ssh -i ~/.ssh/id_rsa_control ubuntu@10.0.0.110 'sudo -n /usr/local/bin/k3s kubectl -n kube-system get pods -l app.kubernetes.io/name=kube-vip -o wide'
   ~~~
 
 ### The exported kubeconfig no longer authenticates
 
 K3s renews inline certificates in its administrator kubeconfig as part of its lifecycle. A copied config is not updated automatically. Re-run section 4.3 from any healthy control-plane VM, then repeat section 5.
 
-### SSH works but sudo fails for control
+### SSH works but sudo fails
 
-The VM template user lacks the required privilege. Correct the template or cloud-init policy so control can run the required K3s administrator commands through sudo. Do not make /etc/rancher/k3s/k3s.yaml world-readable.
+The VM template user lacks the required privilege. Correct the template or cloud-init policy so the guest user can run the required K3s administrator commands through sudo. On the current build `ubuntu` already has passwordless sudo. Do not make /etc/rancher/k3s/k3s.yaml world-readable.
 
 ## 8. Guardrails
 
