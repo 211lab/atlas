@@ -8,14 +8,22 @@ jobs:
   build-push:
     runs-on: ubuntu-latest
     container:
-      image: gcr.io/kaniko-project/executor:debug
-      options: --entrypoint ""
+      image: docker:25-git
+    env:
+      REGISTRY: registry.atlas.lan
+      REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+      GITEA_URL: http://gitea-http.gitea.svc.cluster.local:3000
     steps:
+      - name: Checkout
+        run: |
+          git clone "http://oauth2:${REGISTRY_TOKEN}@gitea-http.gitea.svc.cluster.local:3000/atlas-admin/demo-app.git" .
+
       - name: Configure registry auth
         run: |
-          mkdir -p /kaniko/.docker
-          AUTH=$(printf '%s:%s' "${{ secrets.REGISTRY_USER }}" "${{ secrets.REGISTRY_TOKEN }}" | base64 -w0)
-          echo "{\"auths\":{\"registry.atlas.lan\":{\"auth\":\"${AUTH}\"}}}" > /kaniko/.docker/config.json
+          mkdir -p ~/.docker
+          AUTH=$(printf '%s:%s' "${REGISTRY_USER}" "${REGISTRY_TOKEN}" | base64 | tr -d '\n')
+          printf '{"auths":{"%s":{"auth":"%s"}}}' "${REGISTRY}" "${AUTH}" > ~/.docker/config.json
 
       - name: Build and push
         run: |
@@ -25,9 +33,6 @@ jobs:
           else
             TAG="sha-$(echo "${GITHUB_SHA}" | cut -c1-7)"
           fi
-          echo "Building ${TAG}"
-          /kaniko/executor \
-            --context "${GITHUB_WORKSPACE}" \
-            --dockerfile "${GITHUB_WORKSPACE}/Dockerfile" \
-            --destination "registry.atlas.lan/atlas-admin/demo-app:${TAG}" \
-            --insecure --skip-tls-verify --cleanup
+          echo "Building ${REGISTRY}/atlas-admin/demo-app:${TAG}"
+          docker build -t "${REGISTRY}/atlas-admin/demo-app:${TAG}" .
+          docker push "${REGISTRY}/atlas-admin/demo-app:${TAG}"

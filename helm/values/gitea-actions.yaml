@@ -15,6 +15,10 @@ statefulset:
   replicas: 1
   persistence:
     size: 1Gi
+  extraVolumes:
+    - name: atlas-ca
+      configMap:
+        name: atlas-ca
   runner:
     resources:
       requests:
@@ -29,6 +33,11 @@ statefulset:
         memory: 256Mi
       limits:
         memory: 1536Mi
+    extraVolumeMounts:
+      - name: atlas-ca
+        mountPath: /etc/docker/certs.d/registry.atlas.lan/ca.crt
+        subPath: ca.crt
+        readOnly: true
 
 global:
   storageClass: local-path
