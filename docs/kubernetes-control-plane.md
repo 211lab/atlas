@@ -13,7 +13,7 @@ Verified 2026-10-02 from the Atlas API VIP (`https://10.0.0.108:6443`).
 | Secret encryption | Deployed | Sealed Secrets encryption at rest |
 | Helm releases | Deployed | `atlas-monitoring` (monitoring), `csi-driver-nfs`, `traefik`, `traefik-crd` (kube-system) |
 | NFS CSI | Deployed | Driver is installed; no default StorageClass exists yet |
-| TrueNAS | Pending storage configuration | TrueNAS is at 10.0.10.26. Create a dedicated dataset/export and configure credentials before provisioning Kubernetes volumes; do not reuse the existing movies export |
+| TrueNAS NFS | Deployed | Dataset `data/atlas-k8s` on 10.0.10.26 exported at `/mnt/data/atlas-k8s` to `10.0.0.0/24,10.0.10.0/24`; consumed via the `truenas-nfs` StorageClass (see GitOps platform runbook). Existing `movies` export left untouched |
 | Prometheus and Grafana | Deployed | `atlas-monitoring` kube-prometheus-stack 88.3.0 (app v0.93.0) runs in the monitoring namespace |
 | Grafana access | Deployed | Network UI at http://10.0.0.110:3000 with anonymous Viewer access; administrator login remains available |
 | K3s VM metrics | Deployed | Node Exporter DaemonSet runs across the K3s nodes |

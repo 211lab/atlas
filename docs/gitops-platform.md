@@ -89,9 +89,9 @@ pointing `*.atlas.lan` at the Traefik ClusterIP.
      --create-namespace --version 2.5.19 --set image.tag=0.40.0 \
      --set fullnameOverride=sealed-secrets-controller
    ```
-2. **Storage** — apply `gitops/manifests/storageclass-truenas.yaml`. The `share`
-   is a placeholder; until the TrueNAS export exists, stateful workloads use the
-   default `local-path` StorageClass (see Storage below).
+2. **Storage** — apply `gitops/manifests/storageclass-truenas.yaml`. Stateful
+   workloads use the `truenas-nfs` StorageClass backed by the TrueNAS dataset
+   `data/atlas-k8s` (see Storage below).
 3. **Secrets** — create the plaintext secrets and seal them:
    ```sh
    kubeseal --controller-name sealed-secrets-controller \
@@ -154,16 +154,34 @@ re-seal everything from the plaintext sources.
 
 ## Storage
 
-`truenas-nfs` is defined (csi-driver-nfs, NFSv4.1, `subDir` per PVC) but its
-`share` is a placeholder. To activate:
+Stateful workloads (Gitea, Postgres, the Actions runner) run on the
+`truenas-nfs` StorageClass (csi-driver-nfs, NFSv4.1, `subDir` per PVC):
 
-1. On TrueNAS (10.0.10.26) create a dataset + NFS export allowing `10.0.0.0/24`.
-2. Set `share` in `gitops/manifests/storageclass-truenas.yaml` to the export path.
-3. Change `storageClass` in `helm/values/gitea.yaml` (and any app charts) to
-   `truenas-nfs`.
+| Item | Value |
+| --- | --- |
+| TrueNAS server | 10.0.10.26 |
+| Dataset | `data/atlas-k8s` |
+| NFS export | `/mnt/data/atlas-k8s`, id 6, `mapall root`, networks `10.0.0.0/24,10.0.10.0/24` |
+| StorageClass | `truenas-nfs` (`share: /mnt/data/atlas-k8s`) |
 
-Until then, Gitea/Postgres PVCs use `local-path` (node-local, single worker).
-This is a lab compromise: data is not portable across nodes.
+The dataset and export were created via the TrueNAS API with a dedicated
+`atlas-k8s` user + API key. To re-provision from scratch:
+
+```
+GET  /api/v2.0/pool/dataset              # find the pool (here: data)
+POST /api/v2.0/pool/dataset              # {"name":"data/atlas-k8s"}
+POST /api/v2.0/sharing/nfs               # path, networks, mapall_user/group root, security ["SYS"]
+POST /api/v2.0/service/start             # {"service":"nfs"}
+```
+
+**NFS + Postgres:** the bundled PostgreSQL chart needs
+`postgresql.volumePermissions.enabled: true` so an init container can chown the
+NFS data directory; without it the Bitnami entrypoint exits silently during
+initialization. This is set in `helm/values/gitea.yaml`.
+
+PVC storage classes are immutable, so the original `local-path` forge was
+rebuilt on NFS (dataset + export created first). `local-path` remains the
+cluster default for non-platform workloads.
 
 ## Node registry trust
 
@@ -212,11 +230,9 @@ kubectl -n argocd annotate application <name> argocd.argoproj.io/refresh=hard --
   `~/.docker/config.json` directly instead.
 - **gitea-actions OutOfSync:** Argo CD reports the runner StatefulSet OutOfSync
   due to Helm-generated fields; it is healthy and functional.
-- **TrueNAS NFS pending:** see Storage.
 - **Image Updater v1.3** uses the `ImageUpdater` CRD, not Application
   annotations.
-- **Titan Windows exporter** and TrueNAS storage remain pending from the
-  infrastructure runbook.
+- **Titan Windows exporter** remains pending from the infrastructure runbook.
 
 ## Recovery
 
