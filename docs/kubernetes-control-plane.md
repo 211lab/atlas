@@ -1,5 +1,7 @@
 # Atlas Kubernetes control-plane access runbook
 
+> See [C4 architecture](c4-architecture.md) for the full system/container/component/deployment views.
+
 > Scope: Atlas is a four-host Proxmox cluster running a highly available K3s control plane. This is a tailored operational guide. It contains no passwords, private keys, node-join tokens, or kubeconfig credential data.
 
 ## Current deployed infrastructure

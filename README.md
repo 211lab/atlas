@@ -35,6 +35,8 @@ The deployed Kubernetes platform is documented in [Kubernetes control plane](doc
 
 The self-hosted git forge (Gitea), build runner, and Argo CD delivery pipeline are documented in [GitOps platform](docs/gitops-platform.md). Helm values and Argo CD Applications live under `gitops/` and `helm/`.
 
+The whole platform (compute, storage, networking, control, delivery) is mapped in [C4 architecture](docs/c4-architecture.md) with Context, Container, Component, and Deployment diagrams.
+
 ## Process
 
 Start with each node fresh with the Proxmox ISO.
@@ -89,6 +91,7 @@ systemctl status pvestatd
 ## Docs
 
 - [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
+- [C4 architecture](docs/c4-architecture.md) — Context, Container, Component and Deployment diagrams for compute, storage, networking, control, and delivery
 - [GitOps platform](docs/gitops-platform.md) — Gitea forge, container registry, Actions CI, Argo CD app-of-apps, image promotion, secrets, and storage
 - [Control user bootstrap](ansible/docs/control-user.md)
 - [Proxmox Ubuntu 22.04 cloud-init VMs](ansible/docs/proxmox-cloudinit-ubuntu.md)

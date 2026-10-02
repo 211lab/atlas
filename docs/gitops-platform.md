@@ -1,5 +1,7 @@
 # Atlas GitOps platform runbook
 
+> See [C4 architecture](c4-architecture.md) for the full system/container/component/deployment views.
+
 > Scope: a self-contained git forge (Gitea) and continuous delivery control
 > plane (Argo CD) running on the Atlas k3s cluster, plus a build runner and an
 > automated image-promotion loop. All configuration is Helm-driven and stored in
