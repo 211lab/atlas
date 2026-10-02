@@ -19,9 +19,6 @@ gitea:
       ENABLED: true
     service:
       DISABLE_REGISTRATION: true
-    security:
-      # Allow Gitea to deliver push webhooks to the in-cluster Argo CD service.
-      ALLOWED_HOST_LIST: "private,argocd-server.argocd.svc.cluster.local"
   # DB password is injected from the sealed `gitea-postgresql` secret so the
   # plaintext never lands in git or in the rendered app.ini committed values.
   additionalConfigFromEnvs:
@@ -30,6 +27,11 @@ gitea:
         secretKeyRef:
           name: gitea-postgresql
           key: password
+    # Allow Gitea to deliver push webhooks to the in-cluster Argo CD service.
+    - name: GITEA__webhook__ALLOWED_HOST_LIST
+      value: "private,argocd-server.argocd.svc.cluster.local"
+    - name: GITEA__security__ALLOWED_HOST_LIST
+      value: "private,argocd-server.argocd.svc.cluster.local"
   metrics:
     enabled: true
 
@@ -68,7 +70,12 @@ postgresql:
       enabled: true
       storageClass: truenas-nfs
       size: 8Gi
-    resources:
+# Single-writer app on a shared PVC: rolling updates deadlock on the leveldb
+# lock, so recreate the pod.
+strategy:
+  type: Recreate
+
+resources:
       requests:
         cpu: 50m
         memory: 128Mi
