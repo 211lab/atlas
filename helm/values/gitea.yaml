@@ -63,9 +63,6 @@ postgresql:
     database: gitea
     username: gitea
   primary:
-    extraEnvVars:
-      - name: BITNAMI_DEBUG
-        value: "true"
     persistence:
       enabled: true
       storageClass: truenas-nfs
