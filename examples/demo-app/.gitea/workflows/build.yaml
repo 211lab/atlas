@@ -1,0 +1,33 @@
+name: build
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    container:
+      image: gcr.io/kaniko-project/executor:debug
+      options: --entrypoint ""
+    steps:
+      - name: Configure registry auth
+        run: |
+          mkdir -p /kaniko/.docker
+          AUTH=$(printf '%s:%s' "${{ secrets.REGISTRY_USER }}" "${{ secrets.REGISTRY_TOKEN }}" | base64 -w0)
+          echo "{\"auths\":{\"registry.atlas.lan\":{\"auth\":\"${AUTH}\"}}}" > /kaniko/.docker/config.json
+
+      - name: Build and push
+        run: |
+          set -e
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="sha-$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          fi
+          echo "Building ${TAG}"
+          /kaniko/executor \
+            --context "${GITHUB_WORKSPACE}" \
+            --dockerfile "${GITHUB_WORKSPACE}/Dockerfile" \
+            --destination "registry.atlas.lan/atlas-admin/demo-app:${TAG}" \
+            --insecure --skip-tls-verify --cleanup

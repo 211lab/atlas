@@ -1,0 +1,34 @@
+# Gitea Actions runner helm values (atlas)
+# Chart: gitea/actions   Verified: 0.1.2 (runner 2.0.1)
+#
+# The runner registers and checks out over the in-cluster Gitea service to avoid
+# needing the atlas-ca trust bundle and DNS inside job containers. Image builds
+# push to the same Gitea registry over the internal service (Kaniko --insecure);
+# Argo CD pulls the same repository via the external https://registry.atlas.lan.
+
+enabled: true
+giteaRootURL: http://gitea-http.gitea.svc.cluster.local:3000/
+existingSecret: gitea-runner-token
+existingSecretKey: token
+
+statefulset:
+  replicas: 1
+  persistence:
+    size: 1Gi
+  runner:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+  dind:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        memory: 1536Mi
+
+global:
+  storageClass: local-path

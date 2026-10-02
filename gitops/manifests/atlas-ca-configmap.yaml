@@ -1,0 +1,20 @@
+# Public CA certificate for the atlas-ca ClusterIssuer, exposed as a ConfigMap so
+# in-cluster clients (Argo CD repo-server, image-updater, CI) can trust *.atlas.lan.
+# Regenerate if the atlas-ca is ever recreated.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atlas-ca
+  namespace: argocd
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIBajCCARCgAwIBAgIUR8PAhUW2vy20hI1g2k9EUYbQ0MwwCgYIKoZIzj0EAwIw
+    EzERMA8GA1UEAxMIYXRsYXMtY2EwHhcNMjYxMDAyMTQ1NDM4WhcNMzYwOTI5MTQ1
+    NDM4WjATMREwDwYDVQQDEwhhdGxhcy1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEH
+    A0IABHC609Zdwha30gzXrm5C9yZ1FdpoC5HbCZgnkMsNshNrv4uplElJjvdJtQPT
+    2zJjW6dqAjMxfGH9piHiKwkf50ejQjBAMA4GA1UdDwEB/wQEAwICpDAPBgNVHRMB
+    Af8EBTADAQH/MB0GA1UdDgQWBBQQgh4C76dWyJeZN2dwVm5QbKidCjAKBggqhkjO
+    PQQDAgNIADBFAiEAzu8Wn/YgvxOTtQnzAkhLlZCwoN1jTOI7ImegralVDWkCIDxn
+    ySAVPs4cL+6ypOpyiD7f3rkE5surUXl6nQWBZDd2
+    -----END CERTIFICATE-----

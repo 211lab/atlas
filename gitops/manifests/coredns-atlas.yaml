@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  atlas.server: |
+    atlas.lan:53 {
+        hosts {
+            10.43.186.184 git.atlas.lan registry.atlas.lan argocd.atlas.lan
+            fallthrough
+        }
+    }

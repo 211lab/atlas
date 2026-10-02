@@ -1,0 +1,27 @@
+# App-of-apps root. Bootstrap once with:
+#   kubectl -n argocd apply -f gitops/bootstrap/root-app.yaml
+# Argo CD then reconciles everything under gitops/apps from the local Gitea repo.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+    targetRevision: main
+    path: gitops/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

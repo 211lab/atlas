@@ -1,0 +1,66 @@
+# Argo CD helm values (atlas)
+# Chart: argo/argo-cd   Verified: 10.9.6 (Argo CD v3.5.3)
+# Non-HA, single replica, local admin auth (dex disabled).
+
+global:
+  domain: argocd.atlas.lan
+
+configs:
+  params:
+    server.insecure: true
+  cm:
+    url: https://argocd.atlas.lan
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: atlas-ca
+    hostname: argocd.atlas.lan
+    tls: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+applicationSet:
+  enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false

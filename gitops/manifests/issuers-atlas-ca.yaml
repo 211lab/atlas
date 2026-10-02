@@ -1,0 +1,34 @@
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: atlas-selfsigned-bootstrap
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: atlas-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: atlas-ca
+  secretName: atlas-ca-tls
+  duration: 87600h
+  renewBefore: 8760h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: atlas-selfsigned-bootstrap
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: atlas-ca
+spec:
+  ca:
+    secretName: atlas-ca-tls

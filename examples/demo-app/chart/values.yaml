@@ -1,0 +1,24 @@
+image:
+  repository: registry.atlas.lan/atlas-admin/demo-app
+  tag: v0.1.0
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: traefik
+  host: demo.atlas.lan
+  annotations:
+    cert-manager.io/cluster-issuer: atlas-ca
+  tlsSecretName: demo-app-tls
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi

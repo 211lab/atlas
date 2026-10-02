@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gitea-registry-creds
+  namespace: argocd
+spec:
+  encryptedData:
+    creds: AgAd2qyAP2WGjbM1OpT9VtJuD22cap+rW5nYtDuoTfDLxZdJMWh0HoZBa35mv9gPSG01HMdajo0m6VCOYUb9K27qHSxirGj9S2nbGM/ZmsXr/b5lVpB4NkJeUGCLylqHLlAgZPbVNRr71GHJMGs2N9mTL03SLwfCR5JQV99QexzjCEa2a5f4X0smIb5i28sIVS+/HIcErVSOEHyqw+fLO6FD0Yv04qt5+6OKO2G9qkycthOdncsuFTrEzo/zct5SU0dWe2Z9iP3HldMe+6NiGZ+xCAPf+1DamRr8STpMUclt2jCUnkHqR4Y3KqSEZ1NLe1SD2qphV3oGksTMawSck9u/R6BFvnVIN6mwuLrvMVpZ7472jykBw3Iu8bjEaSqv+8DqUysYb4MexQkshlbigGwESrDsc/+g9OEekJ9kyMWFWKQVExm3SZ47Nuu80yDY2eXgTBQP8uz9ZmEMjy+mPO/KCxXlyY3mohTYbL1ubQVar4UoKCH/fXUSPlfk5EdUeabMiHyZUD52wAL+A7dVYU/mxC+8cHQu4bOMHULdS5CzdABy46wX5ARRdcz8n8StZASMcY0JuPwLFTWn2LTNTybl2X4NfmlgYMrFGhFDlnJcGUyn7nUqunA4ka5RGH0dHaqvxqA0q8Lx5EaFKro1INFvNiM4agMN2RaBq0ymi5jZzbWPYratX4dfslrkact/mRiNnjed0M6T4FJeQaVm5PKUlthE+T5UrQ9BNTTTbxzugkz6mME8kMBrNWr4CNu6f/3VsOKj
+  template:
+    metadata:
+      name: gitea-registry-creds
+      namespace: argocd
+    type: Opaque

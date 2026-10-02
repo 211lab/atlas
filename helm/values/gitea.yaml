@@ -1,0 +1,89 @@
+# Gitea helm values (atlas)
+# Chart: gitea/gitea   Verified: 12.7.0 (Gitea 1.27.0)
+#
+# Storage note: live stateful workloads use `local-path` until the TrueNAS NFS
+# export exists. Switch the two `storageClass` fields below to `truenas-nfs`
+# once gitops/manifests/storageclass-truenas.yaml points at a real share.
+
+gitea:
+  admin:
+    existingSecret: gitea-admin
+  config:
+    server:
+      DOMAIN: git.atlas.lan
+      ROOT_URL: https://git.atlas.lan/
+      SSH_DOMAIN: git.atlas.lan
+      PROTOCOL: http
+    packages:
+      ENABLED: true
+    registry:
+      ENABLED: true
+    service:
+      DISABLE_REGISTRATION: true
+  # DB password is injected from the sealed `gitea-postgresql` secret so the
+  # plaintext never lands in git or in the rendered app.ini committed values.
+  additionalConfigFromEnvs:
+    - name: GITEA__database__PASSWD
+      valueFrom:
+        secretKeyRef:
+          name: gitea-postgresql
+          key: password
+  metrics:
+    enabled: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+persistence:
+  enabled: true
+  storageClass: local-path
+  size: 10Gi
+
+postgresql-ha:
+  enabled: false
+valkey:
+  enabled: false
+valkey-cluster:
+  enabled: false
+
+postgresql:
+  enabled: true
+  auth:
+    existingSecret: gitea-postgresql
+    database: gitea
+    username: gitea
+  primary:
+    persistence:
+      enabled: true
+      storageClass: local-path
+      size: 8Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: atlas-ca
+  hosts:
+    - host: git.atlas.lan
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: registry.atlas.lan
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: gitea-tls
+      hosts:
+        - git.atlas.lan
+        - registry.atlas.lan
