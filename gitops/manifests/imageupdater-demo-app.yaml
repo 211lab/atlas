@@ -16,7 +16,8 @@ spec:
               name: image.repository
               tag: image.tag
   writeBackConfig:
-    method: git:secret:argocd/gitea-writeback
+    method: git:secret:gitea-writeback
     gitConfig:
+      repository: https://git.atlas.lan/atlas-admin/atlas.git
       branch: main
-      writeBackTarget: helmvalues:./examples/demo-app/chart/values.yaml
+      writeBackTarget: helmvalues:values.yaml

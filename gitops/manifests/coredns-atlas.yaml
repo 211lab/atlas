@@ -7,7 +7,7 @@ data:
   atlas.server: |
     atlas.lan:53 {
         hosts {
-            10.43.186.184 git.atlas.lan registry.atlas.lan argocd.atlas.lan
+            10.43.186.184 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan
             fallthrough
         }
     }
