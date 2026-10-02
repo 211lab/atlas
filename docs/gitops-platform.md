@@ -17,7 +17,6 @@ Verified 2026-10-02.
 | Container registry | Gitea built-in | — | gitea | https://registry.atlas.lan |
 | Gitea Actions runner | `gitea/actions` | 0.1.2 / runner 2.0.1 | gitea | — |
 | Argo CD | `argo/argo-cd` | 10.9.6 / v3.5.3 | argocd | https://argocd.atlas.lan |
-| Argo CD Image Updater | `argo/argocd-image-updater` | 1.3.1 / v1.3.0 | argocd | — |
 | Demo app | in-repo chart | 0.1.0 | demo | https://demo.atlas.lan |
 
 Ansible-managed cluster access (SSH, API, Proxmox) is documented separately in
@@ -27,19 +26,25 @@ Ansible-managed cluster access (SSH, API, Proxmox) is documented separately in
 
 ```
 developer push/tag ──▶ Gitea (git + OCI registry)
-                          │  webhook (optional)
+                          │
                           ▼
               Gitea Actions (act_runner + dind)
                  │  builds image, pushes to
                  ▼
         registry.atlas.lan/atlas-admin/<app>:<tag>
                  │
+                 │  (same job) commits the new tag into the GitOps repo
                  ▼
-        Argo CD Image Updater ── commits new tag ──▶ atlas GitOps repo
-                 │
+        atlas GitOps repo ──push webhook──▶ Argo CD /api/webhook
+                 │                              (instant; 60s git poll fallback)
                  ▼
               Argo CD (app-of-apps) ── reconciles ──▶ k3s workloads
 ```
+
+There is **no registry poller**: Argo CD core does not watch container
+registries, so the build job itself writes the new tag back to git and Gitea
+notifies Argo CD. This keeps git as the single source of truth and removes the
+need for a separate `argocd-image-updater` deployment.
 
 - **GitOps layout is an app-of-apps**: a root `Application` points at
   `gitops/apps/`, and every file there is an `Application` that Argo CD manages.
@@ -57,7 +62,7 @@ atlas/
     bootstrap/root-app.yaml     app-of-apps root (bootstrap once)
     projects/platform.yaml      Argo CD AppProject
     apps/                       one Application per component
-    manifests/                  raw manifests: atlas-ca, coredns, SC, ImageUpdater
+    manifests/                  raw manifests: atlas-ca, coredns, StorageClass
     sealed/                     encrypted SealedSecrets (safe to commit)
   helm/values/                  pinned values.yaml per chart
   examples/demo-app/            demo app: Dockerfile, index.html, chart/, .gitea CI
@@ -101,42 +106,52 @@ pointing `*.atlas.lan` at the Traefik ClusterIP.
 4. **Gitea** — `helm upgrade --install gitea gitea/gitea -n gitea -f helm/values/gitea.yaml`.
 5. **CI runner** — `helm upgrade --install gitea-actions gitea/actions -n gitea -f helm/values/gitea-actions.yaml`.
 6. **Argo CD** — `helm upgrade --install argocd argo/argo-cd -n argocd --create-namespace -f helm/values/argocd.yaml`.
-   Register the Gitea repo credential (SealedSecret `argocd-repo-gitea`), then:
+   Argo CD's value file references the sealed `argocd-webhook` secret via the
+   `$argocd-webhook:webhook.gogs.secret` indirection. Register the Gitea repo
+   credential (SealedSecret `argocd-repo-gitea`), then:
    ```sh
    kubectl apply -f gitops/projects/platform.yaml
    kubectl apply -f gitops/bootstrap/root-app.yaml
    ```
-7. **Image Updater** — `helm upgrade --install argocd-image-updater argo/argocd-image-updater -n argocd -f helm/values/image-updater.yaml`.
+7. **Gitea → Argo CD webhook** — in the platform repo
+   (`atlas-admin/atlas`) add a **Gogs**-type webhook to
+   `http://argocd-server.argocd.svc.cluster.local/api/webhook` (JSON, push
+   events) with the same secret as `argocd-webhook`. Gitea must be allowed to
+   call in-cluster hosts (`GITEA__security__ALLOWED_HOST_LIST`, set in
+   `helm/values/gitea.yaml`).
 8. **Push this repo to Gitea** and tag the demo app; Argo CD takes over from there.
 
 ## Using the platform (add a new application)
 
-1. Create a repo in Gitea (e.g. `atlas-admin/myapp`). For the registry, add repo
-   Actions secrets `REGISTRY_USER` and `REGISTRY_TOKEN` (a Gitea PAT with
-   `write:package`).
+1. Create a repo in Gitea (e.g. `atlas-admin/myapp`). Add repo Actions secrets
+   `REGISTRY_USER` and `REGISTRY_TOKEN` (a Gitea PAT with `write:package` and
+   repo write access so CI can promote into the GitOps repo).
 2. Add a `.gitea/workflows/build.yaml` modelled on
-   `examples/demo-app/.gitea/workflows/build.yaml` (checkout over the internal
+   `examples/demo-app/.gitea/workflows/build.yaml`: checkout over the internal
    Gitea service, write `~/.docker/config.json`, `docker build`/`push` to
-   `registry.atlas.lan/atlas-admin/<app>:<tag>`).
+   `registry.atlas.lan/atlas-admin/<app>:<tag>`, then for semver tags commit the
+   new tag into this repo's Helm values.
 3. Add a Helm chart and a GitOps `Application` under `gitops/apps/` with:
-   - `source.repoURL` = the Gitea repo, `path` = chart path, `helm.valueFiles`.
+   - `source.repoURL` = this repo, `path` = chart path, `helm.valueFiles`.
    - `destination.namespace` for the app.
-4. (Optional) automatic tag promotion: add an `ImageUpdater` CR under
-   `gitops/manifests/` with `manifestTargets.helm` and a git write-back target.
-5. Commit; Argo CD reconciles automatically (poll every ~3 min or via webhook).
+4. Commit; the Gitea webhook triggers Argo CD (60s git poll as fallback).
 
 ### How image promotion works
 
-`argocd-image-updater` (v1.3 CRD model) polls the Gitea registry every 2 minutes,
-selects the newest matching tag (`semver` strategy in the demo), and commits the
-new tag **back into git** at the Helm values path. Argo CD then syncs. This keeps
-git as the source of truth.
+The build job that pushes an image already knows its tag, so it performs the
+promotion directly:
 
-- The write-back repository must be an `https://` URL. The updater rejects the
-  internal `http://` service URL with `unknown repository type`; use
-  `https://git.atlas.lan/...` and rely on the mounted `atlas-ca`.
-- `writeBackTarget` is relative to the Application `source.path`; use
-  `helmvalues:values.yaml`, not a repo-root path.
+1. On a `v*` tag push, CI builds/pushes `registry.atlas.lan/<org>/<app>:<tag>`.
+2. The same job clones this repo, sets `image.tag` in the app's Helm
+   `values.yaml`, commits, and pushes.
+3. Gitea delivers a **Gogs-format webhook** to Argo CD's `/api/webhook`, which
+   refreshes the matching Application; Argo CD syncs within seconds. Argo CD's
+   own 60-second git poll is the fallback.
+
+This is the standard CI-writes-to-git promotion pattern and needs no registry
+polling component. Note that Argo CD core does not watch container registries;
+its built-in monitoring is limited to Git polling and webhooks (plus OCI
+*artifact* webhooks for Applications sourced directly from an OCI chart).
 
 ## Sealed Secrets workflow
 
@@ -211,8 +226,7 @@ at a time, keeping etcd quorum (never restart two control planes at once).
 export KUBECONFIG=~/.kube/atlas-admin.yaml
 # status
 kubectl -n argocd get applications
-kubectl -n argocd get imageupdater
-# force a refresh after pushing git changes
+# force a refresh after pushing git changes (webhook does this automatically)
 kubectl -n argocd annotate application <name> argocd.argoproj.io/refresh=hard --overwrite
 # upgrade a component: bump the chart version in gitops/apps/<name>.yaml,
 # adjust helm/values/<name>.yaml, commit, let Argo sync (or refresh).
@@ -230,8 +244,12 @@ kubectl -n argocd annotate application <name> argocd.argoproj.io/refresh=hard --
   `~/.docker/config.json` directly instead.
 - **gitea-actions OutOfSync:** Argo CD reports the runner StatefulSet OutOfSync
   due to Helm-generated fields; it is healthy and functional.
-- **Image Updater v1.3** uses the `ImageUpdater` CRD, not Application
-  annotations.
+- **Gitea pod must be `Recreate`:** Gitea is a single-writer app on a shared PVC;
+  the default `RollingUpdate` deadlocks on the leveldb lock. `strategy.type:
+  Recreate` is set in `helm/values/gitea.yaml`.
+- **Gitea webhook host allowlist:** outbound webhooks to in-cluster services are
+  blocked unless `GITEA__security__ALLOWED_HOST_LIST` includes `private` (set via
+  `gitea.additionalConfigFromEnvs`).
 - **Titan Windows exporter** remains pending from the infrastructure runbook.
 
 ## Recovery
@@ -249,6 +267,6 @@ kubectl -n argocd annotate application <name> argocd.argoproj.io/refresh=hard --
 
 - [Gitea Helm chart](https://gitea.com/gitea/helm-gitea)
 - [Gitea Actions](https://docs.gitea.com/usage/actions/overview)
-- [Argo CD](https://argo-cd.readthedocs.io/) and [Argo CD Image Updater](https://argocd-image-updater.readthedocs.io/)
+- [Argo CD](https://argo-cd.readthedocs.io/) and [Argo CD webhooks](https://argo-cd.readthedocs.io/en/stable/operator-manual/webhook/)
 - [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
 - [cert-manager](https://cert-manager.io/docs/)

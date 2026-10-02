@@ -1,5 +1,5 @@
 # Public CA certificate for the atlas-ca ClusterIssuer, exposed as ConfigMaps so
-# in-cluster clients (Argo CD repo-server, image-updater, CI dind) can trust
+# in-cluster clients (Argo CD repo-server, CI dind) can trust
 # *.atlas.lan. Regenerate if the atlas-ca is ever recreated.
 apiVersion: v1
 kind: ConfigMap
