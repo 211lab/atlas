@@ -10,6 +10,12 @@ configs:
     server.insecure: true
   cm:
     url: https://argocd.atlas.lan
+    timeout.reconciliation: 60s
+  # Gitea pushes a Gogs-format webhook to /api/webhook on git changes.
+  # The actual value is a SealedSecret (`argocd-webhook`); $ indirection keeps
+  # it out of git.
+  secret:
+    gogsSecret: $argocd-webhook:webhook.gogs.secret
 
 server:
   ingress:

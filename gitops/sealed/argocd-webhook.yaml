@@ -1,0 +1,16 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: argocd-webhook
+  namespace: argocd
+spec:
+  encryptedData:
+    webhook.gogs.secret: AgCpUf00ejvO6zRXqKi2O8ojxdkIUW2gFrch59m/6kjcat9cOBl32dBkj05wOueoH/wDsHFxj+t5MN+UGoGdrKoGpSM/7BIzzrm6wN98ohUx8PlLL224b7KGLwzFhu+FehM+mkyGjyZL3oCDIlCJoxoMPlGmA4ryaUeLrPsJdVrH5SPkKv/u5Dz9gvwslck4DGFTFE2Z4RLj0AbUiGWM+ewrKgIcz1dxwuTFxkMyAjELro/BuOilvLrUJl3r4wZJI6gBAVEg5NdNhaVdAEgZH2Y7k9p6tICbbmvKfgehVOiyJgunAo1JPrs4WQS+U0VAJE/gT5EA/sV4fJqofP3aQhenWSPOcmlpqxYUltP/BiiO4QjtubCy5iwFwe3Z6PPFI56NehxDndKsJlIvNFMejGH6LnQwRy3tP8Pza/yyUpUJarMDtvz3U58mgs0ouAtw5fOogVfAEYEBgEeXCS4kjW42FcUAu555Y1SjFgQlGMe6Zw5gNpnmkrWU2ahPvKxtMMvNtHfpb4CYs6ytio7g7BH3Chgr/hOE66PDbEcguhCIW1XlkgJ0CN8ii04rT1T1TkAoJmHMkLpvuTBpLDHQMPVHkqbP3q3PGh4Za2ChpyaJIBexBr3oNn3PQT2E+16kIL2jH4cGhSZN5J64qyYi3s/kgRvzgHs9iCoosnpy0XYO/NOm9gwx7uN9/YDfhPZMPm4eOeAGNxEoelOYo5o/KCBOAgqasW54EmDt3dVrxQmgtBeMb8tNDKhod2L8rfjUgaw=
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: argocd
+      name: argocd-webhook
+      namespace: argocd
+    type: Opaque

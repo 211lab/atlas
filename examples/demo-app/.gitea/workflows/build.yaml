@@ -36,3 +36,17 @@ jobs:
           echo "Building ${REGISTRY}/atlas-admin/demo-app:${TAG}"
           docker build -t "${REGISTRY}/atlas-admin/demo-app:${TAG}" .
           docker push "${REGISTRY}/atlas-admin/demo-app:${TAG}"
+
+      # GitOps promotion: for semver tags, commit the new tag into the platform
+      # repo. Gitea then webhooks Argo CD, which syncs. No registry poller.
+      - name: Promote tag to GitOps repo
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -e
+          TAG="${GITHUB_REF_NAME}"
+          git clone "http://oauth2:${REGISTRY_TOKEN}@gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git" /tmp/gitops
+          cd /tmp/gitops
+          sed -i -E "s|^  tag: .*|  tag: ${TAG}|" examples/demo-app/chart/values.yaml
+          if git diff --quiet; then echo "already at ${TAG}"; exit 0; fi
+          git -c user.email=ci@atlas.lan -c user.name=atlas-ci commit -am "ci: promote demo-app ${TAG}"
+          git push origin main
