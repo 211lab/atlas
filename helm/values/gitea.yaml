@@ -19,6 +19,9 @@ gitea:
       ENABLED: true
     service:
       DISABLE_REGISTRATION: true
+    security:
+      # Allow Gitea to deliver push webhooks to the in-cluster Argo CD service.
+      ALLOWED_HOST_LIST: "private,argocd-server.argocd.svc.cluster.local"
   # DB password is injected from the sealed `gitea-postgresql` secret so the
   # plaintext never lands in git or in the rendered app.ini committed values.
   additionalConfigFromEnvs:
