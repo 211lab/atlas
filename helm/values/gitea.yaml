@@ -12,6 +12,8 @@ gitea:
       DOMAIN: git.atlas.lan
       ROOT_URL: https://git.atlas.lan/
       SSH_DOMAIN: git.atlas.lan
+      SSH_PORT: 2222
+      SSH_LISTEN_PORT: 2222
       PROTOCOL: http
     packages:
       ENABLED: true
@@ -35,6 +37,12 @@ gitea:
   metrics:
     enabled: true
 
+# Single-writer app on a shared PVC: rolling updates deadlock on the leveldb
+# lock, so recreate the pod.
+strategy:
+  type: Recreate
+
+# Gitea (web) container resources.
 resources:
   requests:
     cpu: 50m
@@ -46,6 +54,31 @@ persistence:
   enabled: true
   storageClass: truenas-nfs
   size: 10Gi
+
+# Expose git-over-SSH. Port 2222 avoids the node sshd on 22; k3s ServiceLB
+# (svclb) publishes 2222 on every node IP, so clones use:
+#   ssh://git@git.atlas.lan:2222/<owner>/<repo>.git
+# A dedicated LoadBalancer Service is used (instead of changing the chart's
+# gitea-ssh ClusterIP, whose clusterIP is immutable).
+extraDeploy:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: gitea-ssh-lb
+      namespace: gitea
+      labels:
+        app.kubernetes.io/name: gitea
+        app.kubernetes.io/instance: gitea
+    spec:
+      type: LoadBalancer
+      selector:
+        app.kubernetes.io/name: gitea
+        app.kubernetes.io/instance: gitea
+      ports:
+        - name: ssh
+          port: 2222
+          targetPort: 2222
+          protocol: TCP
 
 postgresql-ha:
   enabled: false
@@ -67,12 +100,7 @@ postgresql:
       enabled: true
       storageClass: truenas-nfs
       size: 8Gi
-# Single-writer app on a shared PVC: rolling updates deadlock on the leveldb
-# lock, so recreate the pod.
-strategy:
-  type: Recreate
-
-resources:
+    resources:
       requests:
         cpu: 50m
         memory: 128Mi

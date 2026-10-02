@@ -84,6 +84,40 @@ Hostnames resolve from the lab network via Pi-hole and inside the cluster via a
 CoreDNS `coredns-custom` ConfigMap (`gitops/manifests/coredns-atlas.yaml`)
 pointing `*.atlas.lan` at the Traefik ClusterIP.
 
+### Git over SSH
+
+Gitea's SSH server is exposed on **port 2222** via the `gitea-ssh-lb`
+LoadBalancer (k3s ServiceLB publishes it on every node IP). Use the
+`ssh://…:2222` form — port 22 on the nodes is the host sshd:
+
+```sh
+git remote add atlas ssh://git@git.atlas.lan:2222/atlas-admin/<repo>.git
+git push -u atlas main
+```
+
+The workstation's public key must be registered on the Gitea account:
+
+```sh
+curl -ksS -X POST -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+  -d "$(jq -cn --arg k "$(cat ~/.ssh/id_rsa.pub)" '{title:"workstation",key:$k}')" \
+  https://git.atlas.lan/api/v1/user/keys
+```
+
+`git.atlas.lan` must resolve on the workstation (Pi-hole record `10.0.0.110
+git.atlas.lan`, or a hosts entry). If it does not, substitute a node IP; the
+git URL still works because Gitea accepts any host it is reached on.
+
+### Agent skill
+
+`.opencode/skills/atlas-deploy-app/SKILL.md` is an opencode skill that drives
+the whole onboarding flow (create repo + CI secrets, add workflow, add the
+`atlas` remote, add the Helm chart + Argo CD Application, push, tag, verify).
+Enable it by adding the path to `skills.paths` in your opencode config:
+
+```json
+{ "skills": { "paths": ["/home/wsl/211-lab/atlas/.opencode/skills"] } }
+```
+
 ## How it was built (reproduce from scratch)
 
 1. **cert-manager + internal CA + Sealed Secrets**
@@ -125,6 +159,9 @@ pointing `*.atlas.lan` at the Traefik ClusterIP.
 
 ## Using the platform (add a new application)
 
+> The `.opencode/skills/atlas-deploy-app` skill automates this end to end; the
+> steps below are what it does.
+
 1. Create a repo in Gitea (e.g. `atlas-admin/myapp`). Add repo Actions secrets
    `REGISTRY_USER` and `REGISTRY_TOKEN` (a Gitea PAT with `write:package` and
    repo write access so CI can promote into the GitOps repo).
@@ -132,8 +169,10 @@ pointing `*.atlas.lan` at the Traefik ClusterIP.
    `examples/demo-app/.gitea/workflows/build.yaml`: checkout over the internal
    Gitea service, write `~/.docker/config.json`, `docker build`/`push` to
    `registry.atlas.lan/atlas-admin/<app>:<tag>`, then for semver tags commit the
-   new tag into this repo's Helm values.
-3. Add a Helm chart and a GitOps `Application` under `gitops/apps/` with:
+   new tag into this repo's Helm values. Push with
+   `git remote add atlas ssh://git@git.atlas.lan:2222/atlas-admin/<app>.git`.
+3. Add a Helm chart under `apps/<app>/chart/` and a GitOps `Application` under
+   `gitops/apps/` with:
    - `source.repoURL` = this repo, `path` = chart path, `helm.valueFiles`.
    - `destination.namespace` for the app.
 4. Commit; the Gitea webhook triggers Argo CD (60s git poll as fallback).

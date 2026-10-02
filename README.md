@@ -37,6 +37,8 @@ The self-hosted git forge (Gitea), build runner, and Argo CD delivery pipeline a
 
 The whole platform (compute, storage, networking, control, delivery) is mapped in [C4 architecture](docs/c4-architecture.md) with Context, Container, Component, and Deployment diagrams.
 
+An opencode agent skill that onboards an application end to end (add the `atlas` git remote, build, tag, deploy) lives at [`.opencode/skills/atlas-deploy-app`](.opencode/skills/atlas-deploy-app/SKILL.md).
+
 ## Process
 
 Start with each node fresh with the Proxmox ISO.

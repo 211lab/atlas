@@ -346,6 +346,7 @@ sequenceDiagram
 | DNS | Pi-hole (LAN) + CoreDNS `coredns-custom` (in-cluster) |
 | TLS CA | `atlas-ca` ClusterIssuer (cert-manager v1.21.2) |
 | Forge/registry | Gitea 1.27.0, PostgreSQL 17, built-in OCI registry |
+| Git over SSH | `ssh://git@git.atlas.lan:2222/<owner>/<repo>.git` (`gitea-ssh-lb`, ServiceLB) |
 | CI | Gitea Actions (act_runner 2.0.1) with dind, `docker:25-git` job image |
 | CD | Argo CD v3.5.3 (app-of-apps), Gitea push webhook, 60s git poll fallback |
 | Storage | TrueNAS NFS (`truenas-nfs`) for platform data; `local-path` default |
