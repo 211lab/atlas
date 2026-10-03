@@ -33,6 +33,29 @@ persistence:
   enabled: true
   size: 10Gi
   storageClassName: truenas-nfs
+  # ADR 0003: persistence is provided by cluster PVs backed by truenas shares.
+  # /data keeps OpenExecutive's internal stores (SQLite + ChromaDB); RED's
+  # relational store is the PostgreSQL container below, on its own truenas PVC.
+
+postgres:
+  image: postgres:16.4-alpine
+  port: 5432
+  database: redops
+  user: redops
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  persistence:
+    size: 10Gi
+    storageClassName: truenas-nfs
+
+database:
+  secretName: redop-postgres
+  urlKey: DATABASE_URL
 
 ingress:
   enabled: true

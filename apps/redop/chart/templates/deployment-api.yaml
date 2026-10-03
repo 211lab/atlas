@@ -41,6 +41,11 @@ spec:
                   key: AUTH_SECRET
             - name: EXEC_EMAIL_ADDRESS
               value: {{ .Values.execEmail | quote }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName }}
+                  key: {{ .Values.database.urlKey }}
             - name: DEFAULT_MODEL
               value: {{ .Values.defaultModel | quote }}
             - name: VECTOR_STORE_PATH
