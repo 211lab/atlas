@@ -41,6 +41,8 @@ spec:
                   key: AUTH_SECRET
             - name: EXEC_EMAIL_ADDRESS
               value: {{ .Values.execEmail | quote }}
+            - name: DEFAULT_MODEL
+              value: {{ .Values.defaultModel | quote }}
             - name: VECTOR_STORE_PATH
               value: /data/chroma_db
             - name: EPISODIC_DB_PATH
