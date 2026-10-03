@@ -1,5 +1,5 @@
-apiTag: v0.4.6-redop.1
-uiTag: v0.4.6-redop.1
+apiTag: v0.4.6-redop.2
+uiTag: v0.4.6-redop.2
 
 apiImage: registry.atlas.lan/atlas-admin/redop-api
 uiImage: registry.atlas.lan/atlas-admin/redop-ui
