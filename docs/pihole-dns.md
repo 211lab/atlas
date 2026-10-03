@@ -1,0 +1,231 @@
+# Dedicated Pi-hole DNS and automatic service discovery
+
+> Scope: provision a dedicated Pi-hole device with Ansible, point the lab
+> network at it, and automatically register Kubernetes Ingress hostnames as DNS
+> records so every device on the network can discover services as they are
+> deployed.
+>
+> Related: [C4 architecture](c4-architecture.md), [GitOps platform](gitops-platform.md).
+
+## Why
+
+Today `*.atlas.lan` is only resolvable *inside* the cluster (a CoreDNS
+`coredns-custom` entry) and by workstations that already have records. A
+dedicated Pi-hole gives one authoritative, network-wide resolver, and the
+in-cluster automation writes an A record for every Ingress host as it appears —
+so `demo.atlas.lan`, `git.atlas.lan`, and anything deployed later resolve on
+every device that uses Pi-hole.
+
+```mermaid
+flowchart LR
+    Dev[Developer deploys an Ingress] --> K8s[k3s API]
+    K8s --> ED[ExternalDNS / dnsweaver]
+    ED -->|A record| PH[Dedicated Pi-hole]
+    PH -->|DNS answers| LAN[All lab devices]
+    K8s --> Traefik[Traefik ingress<br/>node IPs 10.0.0.110-113]
+    LAN -->|HTTPS to the resolved IP| Traefik
+```
+
+Until the dedicated device exists, the cluster already provides in-cluster
+resolution via CoreDNS; this document adds network-wide resolution.
+
+## Part 1 — Provision the dedicated Pi-hole device
+
+### 1.1 Choose the device and address
+
+Any always-on Linux host works: a Raspberry Pi, a small VM on Proxmox, or an
+LXC. Give it a **static address** and reserve it in your router. This runbook
+assumes:
+
+| Item | Value |
+| --- | --- |
+| Inventory host | `pihole` |
+| Address | `10.0.0.107` (example; adjust) |
+| Hostname | `pihole.atlas.lan` |
+| OS | Debian 12 / Ubuntu 22.04+ |
+
+Add the host to `inventory.yml` (already added — edit the address for your lab):
+
+```yaml
+dns:
+  vars:
+    ansible_user: root
+  hosts:
+    pihole:
+      ansible_host: 10.0.0.107
+      hostname: pihole.atlas.lan
+```
+
+### 1.2 Bootstrap access
+
+Like the other hosts, the `pihole` VM should accept the `control` user key. If it
+is a fresh Proxmox VM, run the cloud-init role first, then bootstrap the control
+user:
+
+```sh
+ansible-playbook ansible/playbooks/bootstrap-control.yaml -l dns -u root -k
+ansible all -i inventory.yml -l dns -m ping -o
+```
+
+### 1.3 Install and configure Pi-hole
+
+The `pihole` role installs Pi-hole v6 unattended, sets the web password (when
+supplied), writes static local records, and verifies resolution.
+
+```sh
+# Supply the admin password from a vault/secret, never from the shell history.
+ansible-playbook ansible/playbooks/pihole.yaml \
+  -e pihole_webpassword="$PIHOLE_ADMIN_PASSWORD"
+```
+
+Key defaults (`ansible/playbooks/roles/pihole/defaults/main.yml`):
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `pihole_interface` | `eth0` | interface Pi-hole listens on |
+| `pihole_upstream_dns_1/2` | `1.1.1.1`, `8.8.8.8` | forwarders for non-local names |
+| `pihole_hostname` | `pihole.atlas.lan` | used by the self-test |
+| `pihole_local_records` | `[]` | static records, e.g. router and the Pi-hole itself |
+| `pihole_webpassword` | `""` | set via `-e`/vault |
+
+Static record example:
+
+```yaml
+# extra-vars
+pihole_local_records:
+  - { ip: "10.0.0.107", names: ["pihole.atlas.lan", "dns.atlas.lan"] }
+  - { ip: "10.0.0.1",   names: ["router.lan", "gw.lan"] }
+```
+
+### 1.4 Point the network at Pi-hole
+
+1. **Router / DHCP**: advertise `10.0.0.107` as the primary DNS server (keep a
+   public resolver as secondary only for fallback).
+2. **Pi-hole upstreams**: keep public resolvers so non-lab names resolve.
+3. **Local domain**: Pi-hole answers `atlas.lan` and `lan` from its local
+   records; everything else is forwarded upstream.
+
+### 1.5 Verify
+
+```sh
+dig +short @10.0.0.107 pihole.atlas.lan
+dig +short @10.0.0.107 dns.google     # forwarded
+```
+
+## Part 2 — Automatically register cluster services
+
+Deploy **ExternalDNS** with a Pi-hole webhook provider. It watches Ingress
+(and Service) objects and writes A records into the dedicated Pi-hole. This is
+the GitOps-managed default and lives in `gitops/apps/external-dns.yaml` with
+values in `helm/values/external-dns.yaml`.
+
+### 2.1 How it works
+
+```
+Ingress created (host: app.atlas.lan)
+        │
+        ▼
+ExternalDNS reads Ingress + Traefik Service status (node IPs)
+        │  ApplyChanges
+        ▼
+Pi-hole webhook (ghcr.io/tarantini-io/external-dns-pihole-webhook)
+        │  Pi-hole v6 API
+        ▼
+Pi-hole local DNS: app.atlas.lan -> 10.0.0.110..113
+```
+
+Records are created on deploy and removed when the Ingress is deleted
+(`policy: sync`). `domainFilters: [atlas.lan]` confines it to the lab domain so
+it never touches other Pi-hole records.
+
+### 2.2 Deploy it (GitOps)
+
+1. Set the Pi-hole address in `helm/values/external-dns.yaml`
+   (`PIHOLE_SERVER`), e.g. `http://pihole.atlas.lan` or `http://10.0.0.107`.
+2. Seal the Pi-hole **app password** (Pi-hole v6 → Settings → API, or your
+   admin password) — the committed `gitops/sealed/pihole-api.yaml` is a
+   placeholder and must be replaced:
+
+   ```sh
+   kubectl -n external-dns create secret generic pihole-api \
+     --dry-run=client -o yaml \
+     --from-literal=password="$PIHOLE_API_PASSWORD" \
+   | kubeseal --controller-name sealed-secrets-controller \
+       --controller-namespace sealed-secrets --format yaml \
+   > gitops/sealed/pihole-api.yaml
+   kubectl apply -f gitops/sealed/pihole-api.yaml
+   ```
+
+3. Commit/push the platform repo; Argo CD creates the `external-dns`
+   Application (it is picked up by the app-of-apps `root`).
+
+### 2.3 Verify
+
+```sh
+kubectl -n argocd get application external-dns
+kubectl -n external-dns logs deploy/external-dns --tail=50
+# a record for an existing Ingress should now answer from Pi-hole:
+dig +short @10.0.0.107 demo.atlas.lan
+```
+
+### 2.4 Alternative: dnsweaver (homelab-focused, Pi-hole native)
+
+[dnsweaver](https://maxfield-allison.github.io/dnsweaver/) is a single Go binary
+that reads Kubernetes Ingress/IngressRoute/HTTPRoute/Service and writes records
+to Pi-hole (and can also read Proxmox VMs, so PVE guests get DNS too). Use it
+instead of ExternalDNS if you prefer one purpose-built component:
+
+```yaml
+# deploy/helm/dnsweaver values (helm install dnsweaver deploy/helm/dnsweaver)
+env:
+  - name: DNSWEAVER_INSTANCES
+    value: pihole
+  - name: DNSWEAVER_SOURCES
+    value: kubernetes
+  - name: DNSWEAVER_PIHOLE_TYPE
+    value: pihole
+  - name: DNSWEAVER_PIHOLE_URL
+    value: "http://pihole.atlas.lan"
+  - name: DNSWEAVER_PIHOLE_PASSWORD
+    valueFrom: { secretKeyRef: { name: pihole-api, key: password } }
+  - name: DNSWEAVER_PIHOLE_RECORD_TYPE
+    value: A
+  - name: DNSWEAVER_PIHOLE_DOMAINS
+    value: "*.atlas.lan"
+  - name: DNSWEAVER_PIHOLE_TARGET
+    value: "10.0.0.110"     # Traefik node IP (or a VIP)
+rbac:
+  create: true
+```
+
+Do not run both ExternalDNS and dnsweaver against the same domain at the same
+time — they will fight over records.
+
+## Part 3 — What still needs to be true
+
+- **Traefik has a stable target.** ExternalDNS points records at the Traefik
+  Service status (the four node IPs). If you later add a dedicated ingress VIP,
+  set `DNSWEAVER_PIHOLE_TARGET` / add an external-dns `--target`.
+- **DNS is not a single point of failure.** Run a second Pi-hole (the Ansible
+  role is reusable) and use a shared `custom.list`/config, or use Pi-hole's
+  built-in teleporter backup.
+- **The webhook is third-party.** Pin its tag (`v1.0.0`) and review it before
+  upgrades.
+- **CoreDNS stays.** In-cluster clients keep using the `coredns-custom` entry;
+  the Pi-hole path is for the wider network.
+
+## Security notes
+
+- The Pi-hole app password is a secret: seal it, never commit plaintext.
+- Restrict Pi-hole's admin UI to the lab network; do not expose it publicly.
+- `policy: sync` means ExternalDNS prunes records it owns. Keep
+  `domainFilters` to `atlas.lan` so it cannot delete unrelated records.
+- The placeholder `gitops/sealed/pihole-api.yaml` **must** be re-sealed before
+  deploy; the committed value will not authenticate.
+
+## References
+
+- [Pi-hole v6](https://docs.pi-hole.net/)
+- [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) and the
+  [Pi-hole webhook provider](https://github.com/tarantini-io/external-dns-pihole-webhook)
+- [dnsweaver](https://maxfield-allison.github.io/dnsweaver/)

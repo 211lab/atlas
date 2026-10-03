@@ -1,0 +1,85 @@
+---
+# Install and configure a dedicated Pi-hole (v6) DNS server for the lab.
+# Idempotent: the upstream installer only runs when Pi-hole is absent.
+
+- name: Ensure installer prerequisites are present
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - dnsutils
+      - gnupg
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure /etc/pihole exists
+  ansible.builtin.file:
+    path: /etc/pihole
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Check whether Pi-hole is already installed
+  ansible.builtin.stat:
+    path: /etc/pihole/pihole.toml
+  register: pihole_toml
+
+- name: Pre-seed setupVars.conf for the unattended installer
+  ansible.builtin.template:
+    src: setupVars.conf.j2
+    dest: /etc/pihole/setupVars.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: not pihole_toml.stat.exists
+
+- name: Run the Pi-hole unattended installer
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
+  args:
+    creates: /usr/local/bin/pihole
+  register: pihole_install
+  when: not pihole_toml.stat.exists
+
+- name: Set the web password (when supplied)
+  ansible.builtin.command:
+    cmd: "pihole setpassword {{ pihole_webpassword }}"
+  changed_when: true
+  no_log: true
+  when:
+    - pihole_webpassword | length > 0
+    - pihole_install is changed or pihole_toml.stat.exists
+
+- name: Deploy static local DNS records
+  ansible.builtin.template:
+    src: custom.list.j2
+    dest: /etc/pihole/hosts/custom.list
+    owner: root
+    group: root
+    mode: "0644"
+  when: pihole_local_records | length > 0
+  notify: Restart pihole-FTL
+
+- name: Ensure Pi-hole FTL service is enabled and running
+  ansible.builtin.systemd:
+    name: pihole-FTL
+    enabled: true
+    state: started
+
+- name: Verify DNS answers locally
+  ansible.builtin.command:
+    cmd: "dig +short @127.0.0.1 {{ pihole_hostname }}"
+  register: pihole_self_test
+  changed_when: false
+  retries: 5
+  delay: 3
+  until: pihole_self_test.stdout | length > 0
+  failed_when: false
+
+- name: Report self-test result
+  ansible.builtin.debug:
+    msg: >-
+      {{ pihole_hostname }} -> {{ pihole_self_test.stdout | default('(no answer yet)') }}

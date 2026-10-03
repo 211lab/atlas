@@ -180,6 +180,10 @@ C4Component
 
 ## Level 3 — Component: storage
 
+> Network-wide discovery: a dedicated Pi-hole plus ExternalDNS writes A records
+> for Ingress hosts so every LAN device resolves `*.atlas.lan` — see
+> [Dedicated Pi-hole DNS](pihole-dns.md).
+
 Persistent volumes come from TrueNAS over NFS via the `nfs.csi.k8s.io` driver;
 `local-path` remains the cluster default for non-platform workloads.
 

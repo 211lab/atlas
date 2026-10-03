@@ -1,0 +1,56 @@
+# ExternalDNS helm values (atlas)
+# Chart: external-dns 1.23.0 (kubernetes-sigs)
+# Provider: Pi-hole v6 webhook  ghcr.io/tarantini-io/external-dns-pihole-webhook v1.0.0
+#
+# ExternalDNS watches Ingress (and Service) objects and writes A records into
+# the dedicated Pi-hole, so a newly deployed service is resolvable by every
+# device that uses Pi-hole for DNS. See docs/pihole-dns.md.
+
+fullnameOverride: external-dns
+logLevel: info
+
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/tarantini-io/external-dns-pihole-webhook
+      tag: "v1.0.0"
+    env:
+      # Address of the dedicated Pi-hole (see ansible/playbooks/pihole.yaml).
+      - name: PIHOLE_SERVER
+        value: "http://pihole.atlas.lan"
+      - name: PIHOLE_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: pihole-api
+            key: password
+      - name: LOG_LEVEL
+        value: info
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+
+# Only manage records under the lab domain.
+domainFilters:
+  - atlas.lan
+
+# Ingresses are the source of truth; Services are included for LoadBalancer apps.
+sources:
+  - ingress
+  - service
+
+policy: sync
+registry: txt
+txtOwnerId: atlas
+txtPrefix: k8s.
+interval: 1m
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

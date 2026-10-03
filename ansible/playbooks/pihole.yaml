@@ -1,0 +1,6 @@
+---
+- name: Provision the dedicated Pi-hole DNS device
+  hosts: dns
+  become: true
+  roles:
+    - pihole
