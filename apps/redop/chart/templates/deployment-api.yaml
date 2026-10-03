@@ -39,10 +39,12 @@ spec:
                 secretKeyRef:
                   name: redop-secrets
                   key: AUTH_SECRET
-            - name: EPISODIC_DB_PATH
-              value: /data/episodic_memory.db
+            - name: EXEC_EMAIL_ADDRESS
+              value: {{ .Values.execEmail | quote }}
             - name: VECTOR_STORE_PATH
               value: /data/chroma_db
+            - name: EPISODIC_DB_PATH
+              value: /data/episodic_memory.db
             - name: COMPANY_PROFILE_PATH
               value: /data/company/profile.yaml
           volumeMounts:

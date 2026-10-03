@@ -6,6 +6,8 @@ uiImage: registry.atlas.lan/atlas-admin/redop-ui
 
 imagePullSecrets: gitea-registry
 
+execEmail: exec@redop.atlas.lan
+
 api:
   port: 8000
   resources:
