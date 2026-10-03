@@ -40,4 +40,5 @@ ingress:
   host: redop.atlas.lan
   annotations:
     cert-manager.io/cluster-issuer: atlas-ca
+    traefik.ingress.kubernetes.io/router.middlewares: redop-redop-ipallow@kubernetescrd
   tlsSecretName: redop-tls

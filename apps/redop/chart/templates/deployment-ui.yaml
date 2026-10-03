@@ -34,6 +34,8 @@ spec:
                 secretKeyRef:
                   name: redop-secrets
                   key: AUTH_SECRET
+            - name: REDOP_DISABLE_UI_AUTH
+              value: "true"
           readinessProbe:
             httpGet:
               path: /
