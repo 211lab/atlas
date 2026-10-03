@@ -1,0 +1,40 @@
+apiTag: v0.4.6
+uiTag: v0.4.6
+
+apiImage: registry.atlas.lan/atlas-admin/redop-api
+uiImage: registry.atlas.lan/atlas-admin/redop-ui
+
+imagePullSecrets: gitea-registry
+
+api:
+  port: 8000
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+ui:
+  port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClassName: truenas-nfs
+
+ingress:
+  enabled: true
+  className: traefik
+  host: redop.atlas.lan
+  annotations:
+    cert-manager.io/cluster-issuer: atlas-ca
+  tlsSecretName: redop-tls

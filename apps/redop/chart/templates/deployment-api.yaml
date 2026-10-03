@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redop-api
+  labels:
+    app: redop-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redop-api
+  template:
+    metadata:
+      labels:
+        app: redop-api
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecrets }}
+      containers:
+        - name: api
+          image: "{{ .Values.apiImage }}:{{ .Values.apiTag }}"
+          ports:
+            - containerPort: {{ .Values.api.port }}
+          env:
+            - name: OPENROUTER_ENABLED
+              value: "true"
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: redop-secrets
+                  key: OPENROUTER_API_KEY
+            - name: BACKEND_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: redop-secrets
+                  key: BACKEND_SHARED_SECRET
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: redop-secrets
+                  key: AUTH_SECRET
+            - name: EPISODIC_DB_PATH
+              value: /data/episodic_memory.db
+            - name: VECTOR_STORE_PATH
+              value: /data/chroma_db
+            - name: COMPANY_PROFILE_PATH
+              value: /data/company/profile.yaml
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.api.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.api.port }}
+            initialDelaySeconds: 120
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: redop-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

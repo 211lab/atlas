@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gitea-registry
+  namespace: redop
+spec:
+  encryptedData:
+    .dockerconfigjson: AgCoX/c9up2GyFQQlCzgNT5JrU30ST6E67pssgKgeq0WcyBpzwHBI96971zF3/isjp/3EMwwvenpW4pS2vNi+MC0ER9gJp4eKbHkdGCgaaHyo9P+FoYNNUX4GDHbZynWPGX3yB4j1ULpsXxF1yZ40lcb9Ybhp/8Zp7+IJgVj18RycW544631gdhVIyEN+NsXHWlAzXyQP9K4gJiVDQQiVDVEQecD52GU+uuQ7IlnGbwqnmDf9i854oW+S/9MY2NESzx9OERjyQFzBjuL99J51lI0F94GhN2WLm9LNyuPAkGTf/KhgMWG24qp2HiA5jpawKLCSx/2RmSdTl7sH4oW+/Bi8fDnLlGSkNB22wnSEm6ipjPt5f2/j6vrvyjtQDpfbefSnfuhlpSTFFs+IAv9qROnseAvhFmageEaEbEUuyV/upbZaCO6bygNBc+BPcqkJlIqQDFLU3Bu3i54pyzHe56Un1+zbpHs/QWoTNXylWFuOWD1TygR22bE26aKdIifgABed7ojIO1PnNuJUvIb3vAN46ZliVZhAykK/qrrt9v10CeBlnuFCFp10ORXOqEnZvYKnZhREOPCXbqTMvU4841Q6YPVr0J4m1iVEjrQUYtHP1b0sagi6zyGXUqXFXzc7wLWbVi9Zd2J4xv9v5OwoPcpiPQI4a5G7cDoWFjqxZ5KvrMpvQ89gWoGv5815jKgkhUAzK2W7l71LBGtHasc+Tit2Qd8fkImk35ovlEhfCqMLe8Gk4QKJHpQ7RZrcbay78HzFCK5wP/w6GlwCFghlbZrCZms7GSfgBu5qXQXj7+ULbos5mIkVcqFxkJnL7hD7Yak+UiBokouZQwfe8c8u3LLU6Lv/MQFyh5Vym3tKEuV3li5GUkVs7rXJRmAYEc=
+  template:
+    metadata:
+      name: gitea-registry
+      namespace: redop
+    type: kubernetes.io/dockerconfigjson

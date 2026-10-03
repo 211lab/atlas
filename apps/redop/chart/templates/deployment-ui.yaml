@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redop-ui
+  labels:
+    app: redop-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redop-ui
+  template:
+    metadata:
+      labels:
+        app: redop-ui
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecrets }}
+      containers:
+        - name: ui
+          image: "{{ .Values.uiImage }}:{{ .Values.uiTag }}"
+          ports:
+            - containerPort: {{ .Values.ui.port }}
+          env:
+            - name: BACKEND_BASE_URL
+              value: "http://redop-api:{{ .Values.api.port }}"
+            - name: BACKEND_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: redop-secrets
+                  key: BACKEND_SHARED_SECRET
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: redop-secrets
+                  key: AUTH_SECRET
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.ui.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.ui.resources | nindent 12 }}
