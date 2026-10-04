@@ -82,7 +82,9 @@ atlas/
 
 Hostnames resolve from the lab network via Pi-hole and inside the cluster via a
 CoreDNS `coredns-custom` ConfigMap (`gitops/manifests/coredns-atlas.yaml`)
-pointing `*.atlas.lan` at the Traefik ClusterIP.
+pointing `*.atlas.lan` at the Traefik ClusterIP. For network-wide discovery with
+a dedicated Pi-hole and automatic Ingress registration, see
+[Dedicated Pi-hole DNS](pihole-dns.md).
 
 ### Git over SSH
 

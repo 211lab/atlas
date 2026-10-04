@@ -1,0 +1,18 @@
+# SealedSecret for the dedicated Pi-hole API/app password.
+# NOTE: the committed value is a PLACEHOLDER. Re-seal with the real password:
+#   kubeseal --controller-name sealed-secrets-controller \
+#     --controller-namespace sealed-secrets --format yaml < plain.yaml > pihole-api.yaml
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: pihole-api
+  namespace: external-dns
+spec:
+  encryptedData:
+    password: AgBwuaC1NeJxCDo4H6dACSWlTwTVQUEgK64U/KaC4dKnMeqts9tKRIM4MpDmbjXEs112SvX9ljP9yOgn1d5WZzLxnQAUuTbPgdtK0RJ+SGPpWW8zZlqVkSGoCI/wskOqBzIiws2TEzOITuTle1P5y8biB1I0Sn0YrpmTEG3j1/MWY+qVqBHt9EVKG/xY4VjlbPW4TxUiChgfvVMhbRcT1uRc7OfCfcNvS9+iHh94RioWtcuvrVd8rwt1yaUpJLY5MqI/sjKi8DhAV0tVzxfk4quU3chxlMCiCvdhUYErKQRA4mKXiXhIjq4MtnABrWWgS+6ZFYuL6rP5kDVPW7oKL08BqO25Lxa+UmA4jFtv+qPcXt+FAA7+l6bI7JAPTvKoGBfmIGi7/Px/gU4OkerxnCUHnM2GjbZju2fsY+3kTdrXn8vpk6JM3r2aaEmeNXrBRqZSr7sytG+R8Zit7rmT8PwCprhvcMNgLSCrrRf02qNNMJYvs/J+drdXgvc1z9I80mv/CwYBszjyq27w4+DsfLTYh0/7TenQIPISOCkq3CvuR+zhCjwQGSY1yQQiUnD/8YLM5dw9h9GHW7P2IGigdB1g2e579/td3l62jZbIQxubpe7zNfrPXfXtc4ybbNnL6VRda3QsjNT5+TLgseCX6gJxv/izjzTZZybiFvTPlpRESQz3IBLKPCpEXXsb8aKy1LREW4r2FVkZVc7t4mHvX0a7OW3CJjOAyhE2w5AO2t17qQ==
+  template:
+    metadata:
+      name: pihole-api
+      namespace: external-dns
+    type: Opaque

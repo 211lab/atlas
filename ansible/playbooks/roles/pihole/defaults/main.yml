@@ -1,0 +1,30 @@
+# Pi-hole role defaults.
+# Override per-host in inventory or via --extra-vars.
+
+# Network
+pihole_interface: eth0
+pihole_ipv4_address: "{{ ansible_host }}"
+pihole_ipv6_address: ""
+pihole_hostname: pihole.atlas.lan
+pihole_domain: atlas.lan
+
+# Upstream resolvers (fall through when a name is not local)
+pihole_upstream_dns_1: 1.1.1.1
+pihole_upstream_dns_2: 8.8.8.8
+
+# Behaviour
+pihole_query_logging: true
+pihole_dnssec: false
+pihole_rev_server: false
+pihole_blocking_enabled: true
+
+# Web UI. Leave empty to set a random password at install time (read it with
+# `pihole setpassword` afterwards). Prefer supplying this from Vault/extra-vars.
+pihole_webpassword: ""
+
+# Static local DNS records cooked into the install. Dynamic cluster service
+# records are handled by the in-cluster automation (see docs/pihole-dns.md).
+#   pihole_local_records:
+#     - { ip: "10.0.0.107", names: ["pihole.atlas.lan", "dns.atlas.lan"] }
+#     - { ip: "10.0.0.1",   names: ["router.lan", "gw.lan"] }
+pihole_local_records: []

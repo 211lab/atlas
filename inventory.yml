@@ -22,6 +22,14 @@ services:
     agent:
       ansible_host: 10.0.10.155
 
+dns:
+  vars:
+    ansible_user: root
+  hosts:
+    pihole:
+      ansible_host: 10.0.0.107
+      hostname: pihole.atlas.lan
+
 local:
   vars:
     ansible_user: wsl
