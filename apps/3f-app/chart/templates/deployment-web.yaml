@@ -25,9 +25,6 @@ spec:
             # Vite (dev server) reads VITE_* from the process environment.
             - name: VITE_API_URL
               value: {{ .Values.web.apiUrl | quote }}
-            # Vite blocks requests whose Host is not allow-listed; add ours.
-            - name: __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
-              value: {{ .Values.ingress.host | quote }}
           readinessProbe:
             httpGet:
               path: /
