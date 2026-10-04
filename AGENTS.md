@@ -11,6 +11,8 @@ Read these before making changes:
 - `docs/gitops-platform.md` — forge, registry, CI, Argo CD, secrets, storage
 - `docs/c4-architecture.md` — full context/container/component/deployment views
 - `docs/kubernetes-control-plane.md` — HA topology, access, recovery
+- `docs/adr/` — architecture decision records (ADR 0001: naming and reachability)
+- `docs/pihole-dns.md` — dedicated Pi-hole + ExternalDNS service-discovery design
 - `.opencode/skills/atlas-deploy-app/SKILL.md` — onboard a new app end to end
 - `.opencode/skills/atlas-cluster/SKILL.md` — live cluster recon, topology and ops
 
@@ -55,6 +57,7 @@ gitops/sealed/               SealedSecrets (safe to commit)
 helm/values/<name>.yaml      pinned values for platform components
 examples/demo-app/           canonical worked example (CI + chart + promotion)
 docs/                        runbooks and architecture
+docs/adr/                    architecture decision records
 .opencode/skills/            opencode skills for agents
 ```
 
@@ -110,10 +113,14 @@ kubectl -n <ns> get deploy,po,ingress,certificate
 
 ## Known issues / drift (verified 2026-10-04)
 
-- `gitea-actions` Application is `OutOfSync` (Helm-generated field noise); the
-  runner is healthy and functional.
-- `external-dns` namespace exists but is empty — an orphaned/abandoned install.
-- `redop-api` liveness probe intermittently times out (event noise).
+- **DNS not live:** Pi-hole (`10.0.0.107`) is unprovisioned and the external-dns
+  SealedSecret is a placeholder (see *Open work*). The `external-dns` namespace
+  is currently empty.
+- **Fixed in git, not yet live** (apply by pushing `main` to the forge):
+  - `gitea-actions` `OutOfSync` — the runner StatefulSet is now annotated
+    `argocd.argoproj.io/compare-options: IgnoreExtraneous` for API-defaulted
+    fields.
+  - `redop-api` liveness flapping — probe `timeoutSeconds` raised to 5s.
 - Prometheus retention is 7d on `emptyDir` (ephemeral); no PVC.
 - The `sealed-secrets` chart reports appVersion 0.31.0 but the image is 0.40.0
   (pinned via values).
@@ -123,17 +130,14 @@ kubectl -n <ns> get deploy,po,ingress,certificate
 
 ## Open work / pending decisions
 
-In flight in this repo — extend rather than duplicate or contradict:
-
-- **`docs/adr-service-naming-reachability`** — ADR 0001 (service naming and
-  reachability: `atlas.lan` is the canonical namespace, Pi-hole becomes a
-  Tailscale DNS resolver, `*.ts.net` for publicly-trusted TLS). Status:
-  *Proposed*; not on `main` yet.
-- **`feat/pihole-dns-autoregistration`** — a dedicated Pi-hole Ansible role,
-  `docs/pihole-dns.md`, an `external-dns` Application + `helm/values/external-dns.yaml`,
-  and `gitops/sealed/pihole-api.yaml` for automatic Ingress DNS registration. The
-  empty `external-dns` namespace on the cluster is a remnant of this work.
+- **DNS and reachability — ADR 0001 (accepted), declared but not live.** The
+  decision and design are on `main` (`docs/adr/0001-*`, `docs/pihole-dns.md`),
+  but the Pi-hole host (`10.0.0.107`, `pihole.atlas.lan`) is **not
+  provisioned** (`ansible/playbooks/pihole.yaml`), `gitops/sealed/pihole-api.yaml`
+  is a **placeholder** that will not authenticate, and `pihole.atlas.lan` does
+  not resolve in-cluster. ExternalDNS (`gitops/apps/external-dns.yaml`) will be
+  Degraded until those are done — do not treat its records as authoritative.
 - **`feat/immich`** — Immich + CloudNativePG deployment (see
   [Applications](docs/applications.md)).
-- `apps/redop/chart/values.yaml` cites "ADR 0003", but no `docs/adr/` exists on
-  `main` yet — ADR numbering is not established here.
+- `apps/redop/chart/values.yaml` cites "ADR 0003", which does not exist; ADR
+  numbering beyond 0001 is not established here.

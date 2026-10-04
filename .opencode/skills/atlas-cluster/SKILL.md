@@ -64,10 +64,14 @@ Third-party platform components are upstream charts pinned in
 ### Argo CD (app-of-apps)
 
 `root` (path `gitops/apps`) reconciled from
-`http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git` @
-`7f21a650`. Children: `argocd`, `atlas-config`, `cert-manager`, `demo-app`,
-`gitea`, `gitea-actions`, `redop`, `sealed-secrets`. All `Synced/Healthy`
-except **`gitea-actions` = `OutOfSync`** (Helm field noise; runner healthy).
+`http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git`.
+Children: `argocd`, `atlas-config`, `cert-manager`, `demo-app`, `gitea`,
+`gitea-actions`, `redop`, `sealed-secrets`. All `Synced/Healthy` except
+**`gitea-actions` = `OutOfSync`** — the runner StatefulSet differs from the
+Helm render only in API-server-defaulted fields; a fix
+(`argocd.argoproj.io/compare-options: IgnoreExtraneous`) is committed but not
+yet live. `external-dns` is declared on `main` but not yet synced to the cluster
+(see DNS below).
 
 - `atlas-config` applies `gitops/manifests/*` into namespace `cert-manager`
   (cluster-scoped objects: `atlas-ca` ClusterIssuer/Certificate, `truenas-nfs`
@@ -88,6 +92,19 @@ All ingress class `traefik`; TLS issued by the `atlas-ca` ClusterIssuer
 (`gitea-ssh-lb`) on port **2222** (`git@git.atlas.lan:2222`). Grafana is a
 LoadBalancer on port 3000. `atlas-ca` public cert is also published as
 ConfigMaps in `argocd` and `gitea` for in-cluster trust.
+
+**Network-wide DNS is declared but not live** (ADR 0001,
+`docs/adr/0001-service-naming-and-reachability.md`; design in
+`docs/pihole-dns.md`): a dedicated Pi-hole (`10.0.0.107`) plus an `external-dns`
+Application would auto-register Ingress hosts. Until the Pi-hole is provisioned
+and `gitops/sealed/pihole-api.yaml` is re-sealed from its placeholder,
+`.atlas.lan` resolves only in-cluster (CoreDNS `coredns-custom`) and via
+workstation `/etc/hosts` entries:
+
+```text
+10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan redop.atlas.lan immich.atlas.lan
+10.0.0.107 pihole.atlas.lan
+```
 
 ### Storage
 
@@ -147,9 +164,12 @@ helm list -A
 
 ## Known issues and drift
 
-- `gitea-actions` Application `OutOfSync` (Helm-generated field noise) — healthy.
-- `external-dns` namespace is empty; no external-dns workloads exist.
-- `redop-api` liveness probe intermittently times out.
+- `gitea-actions` Application `OutOfSync` (Helm field/defaulting noise; runner
+  healthy). Fix committed (`IgnoreExtraneous`) but not yet live.
+- `external-dns` is declared on `main` but not deployed: Pi-hole (`10.0.0.107`)
+  is unprovisioned and its SealedSecret is a placeholder; the namespace is empty.
+- `redop-api` liveness probe occasionally timed out on the default 1s timeout; a
+  5s timeout fix is committed but not yet live (all `/health` requests return 200).
 - Prometheus storage is ephemeral (`emptyDir`, 7d) — no persistence.
 - `sealed-secrets` chart appVersion (0.31.0) != running image (0.40.0).
 - Only one worker node; control planes are schedulable and carry most pods.
