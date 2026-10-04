@@ -69,6 +69,11 @@ spec:
               port: {{ .Values.api.port }}
             initialDelaySeconds: 120
             periodSeconds: 20
+            # The single-worker API keeps /health on the same event loop as
+            # long-running model/DB work, so a busy moment can exceed 1s. Allow
+            # more headroom (and a couple more failures) to avoid flapping.
+            timeoutSeconds: 5
+            failureThreshold: 5
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
       volumes:
