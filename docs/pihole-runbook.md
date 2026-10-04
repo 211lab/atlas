@@ -1,0 +1,219 @@
+# Pi-hole DNS runbook — provision, wire, and verify
+
+> Operational runbook for the dedicated Pi-hole and automatic Ingress DNS
+> registration. Design and rationale live in [ADR 0001](adr/0001-service-naming-and-reachability.md)
+> (accepted) and [Dedicated Pi-hole DNS](pihole-dns.md). This page is the
+> step-by-step execution order, its verification, and its rollback.
+>
+> **Status:** declared in git, **not live**. The Pi-hole host
+> (`10.0.0.107`) is not provisioned and `gitops/sealed/pihole-api.yaml` is a
+> placeholder that will not authenticate. Until this runbook is completed,
+> `*.atlas.lan` resolves only in-cluster (CoreDNS `coredns-custom`) and via
+> workstation `/etc/hosts` entries.
+
+## Outcome
+
+After this runbook: every device that uses the Pi-hole resolves `*.atlas.lan`,
+and each Ingress host is registered automatically as it is deployed.
+
+```
+Ingress created ──▶ ExternalDNS reads Ingress + Traefik Service ──▶ Pi-hole webhook
+                                                                    │  A record
+LAN/tailnet clients ◀── Pi-hole answers app.atlas.lan ──────────────┘
+```
+
+## Inventory and preconditions
+
+| Item | Value | Where |
+| --- | --- | --- |
+| Pi-hole host | `pihole` / `10.0.0.107` | `inventory.yml` (`dns` group) |
+| Hostname | `pihole.atlas.lan` | `pihole_hostname` default |
+| Cluster | k3s, Traefik on `10.0.0.110-113` | `KUBECONFIG=~/.kube/atlas-admin.yaml` |
+| GitOps | Argo CD app-of-apps `root` from Gitea `atlas-admin/atlas` | `gitops/apps/` |
+| Tools | `ansible`, `kubectl`, `kubeseal`, `gh` | workstation |
+
+Preflight:
+
+```sh
+ansible all -i inventory.yml -l dns -m ping -o          # once the host exists
+export KUBECONFIG=~/.kube/atlas-admin.yaml
+kubectl -n argocd get application external-dns 2>/dev/null || echo "not deployed yet"
+kubeseal --fetch-cert --controller-name sealed-secrets-controller \
+  --controller-namespace sealed-secrets >/dev/null && echo "kubeseal can reach the controller"
+```
+
+## Phase 1 — Provision the Pi-hole
+
+The host is a fresh Linux VM (Debian 12 / Ubuntu 22.04+). Follow
+[Dedicated Pi-hole DNS → Part 1](pihole-dns.md) for the host/address setup.
+
+```sh
+# 1. Bootstrap the control user on the new host (root, password auth once).
+ansible-playbook ansible/playbooks/bootstrap-control.yaml -l dns -u root -k
+
+# 2. Install and configure Pi-hole; supply the admin password from a secret
+#    manager, never shell history.
+ansible-playbook ansible/playbooks/pihole.yaml \
+  -e pihole_webpassword="$PIHOLE_ADMIN_PASSWORD"
+
+# 3. Verify the resolver answers.
+dig +short @10.0.0.107 pihole.atlas.lan
+dig +short @10.0.0.107 github.com      # forwarded upstream
+```
+
+Notes:
+
+- The role installs Pi-hole v6 unattended and is idempotent.
+- Add static records (router, the Pi-hole itself) via `-e pihole_local_records`:
+  ```yaml
+  pihole_local_records:
+    - { ip: "10.0.0.107", names: ["pihole.atlas.lan", "dns.atlas.lan"] }
+    - { ip: "10.0.0.1",   names: ["router.lan", "gw.lan"] }
+  ```
+- The Pi-hole **app password** (Settings → API) is what ExternalDNS uses.
+
+## Phase 2 — Seal the Pi-hole API password
+
+Replace the committed placeholder with a real SealedSecret (safe to commit):
+
+```sh
+kubectl -n external-dns create secret generic pihole-api \
+  --dry-run=client -o yaml \
+  --from-literal=password="$PIHOLE_API_PASSWORD" \
+| kubeseal --controller-name sealed-secrets-controller \
+    --controller-namespace sealed-secrets --format yaml \
+> gitops/sealed/pihole-api.yaml
+```
+
+If the `external-dns` namespace does not exist yet, create it first or seal with
+`--namespace external-dns` and apply after Argo creates it.
+
+## Phase 3 — Make the Pi-hole reachable from the cluster
+
+ExternalDNS runs in-cluster and calls the Pi-hole API. Pick one:
+
+- **Option A (readable, recommended):** add the Pi-hole to the CoreDNS custom
+  zone `gitops/manifests/coredns-atlas.yaml`:
+
+  ```yaml
+  atlas.server: |
+      atlas.lan:53 {
+          hosts {
+              10.43.186.184 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan
+              10.0.0.107    pihole.atlas.lan
+              fallthrough
+          }
+      }
+  ```
+
+- **Option B:** set `PIHOLE_SERVER: "http://10.0.0.107"` in
+  `helm/values/external-dns.yaml` (removes the DNS dependency).
+
+## Phase 4 — Deploy ExternalDNS through GitOps
+
+`gitops/apps/external-dns.yaml` and `helm/values/external-dns.yaml` already
+declare it (chart `kubernetes-sigs/external-dns` `1.23.0`, provider `webhook`
+via `ghcr.io/tarantini-io/external-dns-pihole-webhook:v1.0.0`,
+`domainFilters: [atlas.lan]`, `policy: sync`, `sources: [ingress, service]`).
+Commit Phases 2–3, then push to **both** remotes — Argo CD watches the forge:
+
+```sh
+git add gitops/sealed/pihole-api.yaml gitops/manifests/coredns-atlas.yaml helm/values/external-dns.yaml
+git commit -m "feat(dns): provision Pi-hole credentials and in-cluster resolution"
+git push origin main
+git push gitea main        # local forge → Gitea webhook → Argo CD
+```
+
+Verify:
+
+```sh
+kubectl -n argocd get application external-dns \
+  -o custom-columns=NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status
+kubectl -n external-dns get pods
+kubectl -n external-dns logs deploy/external-dns --tail=50
+```
+
+If it does not appear within a minute, force a refresh:
+
+```sh
+kubectl -n argocd annotate application root         argocd.argoproj.io/refresh=hard --overwrite
+kubectl -n argocd annotate application external-dns argocd.argoproj.io/refresh=hard --overwrite
+```
+
+## Phase 5 — Cut the network over to Pi-hole
+
+1. **Router / DHCP:** advertise `10.0.0.107` as the primary DNS server (public
+   resolver only as fallback); reserve the Pi-hole's IP.
+2. **Pi-hole upstreams:** keep public resolvers so non-lab names resolve.
+3. **Tailnet (per ADR 0001):** make Pi-hole a Tailscale agent and set its tailnet
+   IP as a global nameserver with "Override local DNS".
+
+## Phase 6 — Verify end to end
+
+```sh
+# A record written from an Ingress host:
+dig +short @10.0.0.107 demo.atlas.lan
+dig +short @10.0.0.107 git.atlas.lan
+
+# From a client that uses Pi-hole as its resolver:
+dig +short demo.atlas.lan
+
+# HTTPS still terminates at Traefik:
+curl -ksS -o /dev/null -w '%{http_code}\n' --resolve demo.atlas.lan:443:10.0.0.110 https://demo.atlas.lan/
+```
+
+Success = ExternalDNS `Synced/Healthy`, `dig` returns a Traefik node IP, and the
+endpoint returns 200.
+
+## Phase 7 — Troubleshooting
+
+| Symptom | Check / fix |
+| --- | --- |
+| ExternalDNS `Degraded`, logs show auth failure | `pihole-api` still the placeholder, or the app password changed. Re-run Phase 2. |
+| `dial tcp: lookup pihole.atlas.lan` in logs | Phase 3 not applied, or CoreDNS not reloaded. Add the record or use Option B. |
+| No records created | `dig @10.0.0.107` for the host; check ExternalDNS logs for `domainFilters`/ownership; confirm `sources` include `ingress`. |
+| Records point at wrong IPs | Traefik Service status changed; re-check `kubectl -n kube-system get svc traefik`. |
+| Records deleted unexpectedly | `policy: sync` prunes records ExternalDNS owns within `domainFilters`; keep the filter to `atlas.lan`. |
+| In-cluster names fail | CoreDNS `coredns-custom` (Phase 3) is separate from the Pi-hole; verify both. |
+| WSL `*.atlas.lan` unresolved | Add entries to `/etc/hosts` (see below) or point the workstation at Pi-hole. |
+
+Workstation fallback (`/etc/hosts`), until Pi-hole is the resolver:
+
+```text
+10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan redop.atlas.lan immich.atlas.lan
+10.0.0.107 pihole.atlas.lan
+```
+
+On WSL, `/etc/hosts` is regenerated on boot; set `[network] generateHosts=false`
+in `/etc/wsl.conf` (then `wsl --shutdown`) to persist manual entries.
+
+## Phase 8 — Rollback / disable
+
+- Stop the automation: delete `gitops/apps/external-dns.yaml`, commit, and push
+  to the forge. Argo prunes the ExternalDNS Application.
+- Delete leftovers in Pi-hole (Settings → Local DNS Records) and any `k8s.*`
+  TXT records, since pruning the app does not remove records it created.
+- Re-point router/DHCP DNS away from the Pi-hole if decommissioning the host.
+
+## Security
+
+- The Pi-hole app password is a secret: seal it; never commit plaintext.
+- Restrict the Pi-hole admin UI to the lab network; do not expose it publicly.
+- Keep `domainFilters: [atlas.lan]` so `policy: sync` cannot delete unrelated
+  records.
+- The webhook provider is third-party; its image is pinned to `v1.0.0` — review
+  before bumping.
+
+## Known limitations
+
+- **Single point of failure:** per ADR 0001, one Pi-hole is a SPOF for all
+  non-`*.ts.net` resolution; add a second instance for HA.
+- `*.atlas.lan` certs come from the internal `atlas-ca`, not a public CA.
+
+## References
+
+- [ADR 0001 — Service naming and reachability](adr/0001-service-naming-and-reachability.md)
+- [Dedicated Pi-hole DNS design](pihole-dns.md)
+- [Pi-hole v6 docs](https://docs.pi-hole.net/)
+- [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) ·
+  [Pi-hole webhook provider](https://github.com/tarantini-io/external-dns-pihole-webhook)
