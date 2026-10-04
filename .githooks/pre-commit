@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#
+# pre-commit hook: block commits that would introduce secrets.
+#
+# Scans the staged diff with gitleaks using the repo's .gitleaks.toml. Prefers a
+# local gitleaks binary; falls back to the pinned Docker image. Install with:
+#
+#   git config core.hooksPath .githooks
+#
+# Bypass deliberately (rare, e.g. a known false positive) with:
+#   git commit --no-verify
+
+set -euo pipefail
+
+GITLEAKS_IMAGE="zricethezav/gitleaks:v8.30.1"
+repo_root="$(git rev-parse --show-toplevel)"
+config="$repo_root/.gitleaks.toml"
+
+GITLEAKS_BIN=""
+if command -v gitleaks >/dev/null 2>&1; then
+  GITLEAKS_BIN="$(command -v gitleaks)"
+elif [ -x "$HOME/.local/bin/gitleaks" ]; then
+  GITLEAKS_BIN="$HOME/.local/bin/gitleaks"
+fi
+
+run_gitleaks() {
+  if [ -n "$GITLEAKS_BIN" ]; then
+    "$GITLEAKS_BIN" git --staged --config "$config" --redact --no-banner
+    return $?
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    # Work around Docker Desktop credential-helper issues on some WSL setups.
+    export DOCKER_CONFIG="${DOCKER_CONFIG:-$(mktemp -d)}"
+    [ -f "$DOCKER_CONFIG/config.json" ] || printf '{}' >"$DOCKER_CONFIG/config.json"
+    docker run --rm \
+      -v "$repo_root:/repo" \
+      -w /repo \
+      "$GITLEAKS_IMAGE" git --staged --config /repo/.gitleaks.toml --redact --no-banner
+    return $?
+  fi
+
+  echo "pre-commit: gitleaks not found and Docker unavailable; cannot scan for secrets." >&2
+  echo "pre-commit: install gitleaks (https://github.com/gitleaks/gitleaks) or use --no-verify to bypass." >&2
+  return 1
+}
+
+status=0
+run_gitleaks || status=$?
+
+if [ "$status" -ne 0 ]; then
+  cat >&2 <<'EOF'
+
+pre-commit: potential secret detected in staged changes. Commit blocked.
+
+Fix the finding (remove/rotate the secret, or add it to .gitleaks.toml
+allowlist with a comment explaining why it is safe), then retry.
+To bypass once: git commit --no-verify
+EOF
+  exit "$status"
+fi
