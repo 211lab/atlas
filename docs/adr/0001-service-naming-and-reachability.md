@@ -1,17 +1,18 @@
 # ADR 0001 — Service naming and reachability for Atlas-hosted services
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-03
+- **Accepted:** 2026-10-04
 - **Deciders:** 211 Lab
-- **Related:** [C4 architecture](../c4-architecture.md), [GitOps platform](../gitops-platform.md), dedicated Pi-hole DNS design (`docs/pihole-dns.md`, PR #2)
+- **Related:** [C4 architecture](../c4-architecture.md), [GitOps platform](../gitops-platform.md), [Dedicated Pi-hole DNS](../pihole-dns.md)
 
 ## Context
 
 Atlas is the 211 Lab k3s cluster. Services are exposed through Traefik Ingress
-(node IPs `10.0.0.110-113`) and, per the dedicated Pi-hole DNS design
-(`docs/pihole-dns.md`, currently in PR #2), the Ingress hostname (`app.atlas.lan`)
-is auto-registered as an A record in a dedicated Pi-hole. The stated goal is
-that "every device on the network can discover services as they are deployed".
+(node IPs `10.0.0.110-113`) and, per the [dedicated Pi-hole DNS design](../pihole-dns.md),
+the Ingress hostname (`app.atlas.lan`) is auto-registered as an A record in a
+dedicated Pi-hole. The stated goal is that "every device on the network can
+discover services as they are deployed".
 
 Until now the implicit assumption was that clients sit on the lab LAN
 (`10.0.0.0/24`) and use that Pi-hole as their resolver. The access model is now
@@ -45,8 +46,9 @@ DNS, and the tailnet.
 
 ## Decision
 
-> **Proposed — open for discussion in this PR.** The decision is not final until
-> this ADR is merged as `Accepted`.
+> **Accepted 2026-10-04.** The naming/reachability strategy below is the
+> canonical one for Atlas. The open questions (see *Follow-up items*) are
+> implementation details that do not change the decision.
 
 1. **`atlas.lan` is the canonical internal namespace for cluster services.**
    Every Ingress host is registered in Pi-hole as `*.<service>.atlas.lan` (or
@@ -98,7 +100,23 @@ flowchart TD
 - **Neutral:** MagicDNS search-domain and "Override local DNS" behaviour must be
   documented, since it changes where client DNS queries go.
 
-## Open questions (need agreement before this ADR is accepted)
+### Current status
+
+The naming/reachability pieces are now declared in this repo but are not yet
+live (see [Dedicated Pi-hole DNS](../pihole-dns.md)):
+
+- The dedicated Pi-hole host (`10.0.0.107`, `pihole.atlas.lan`) is **not
+  provisioned** — run `ansible/playbooks/pihole.yaml`.
+- `gitops/apps/external-dns.yaml` + `helm/values/external-dns.yaml` declare
+  ExternalDNS with the Pi-hole webhook provider, but `gitops/sealed/pihole-api.yaml`
+  is a **placeholder** that will not authenticate; re-seal the real app password
+  before relying on it.
+- `pihole.atlas.lan` must resolve for in-cluster clients (CoreDNS) before
+  ExternalDNS can reach the Pi-hole API.
+- Until then, `.lan` resolution remains in-cluster only (CoreDNS
+  `coredns-custom`) plus workstation `/etc/hosts` entries.
+
+## Follow-up items (tracked; not blocking acceptance)
 
 1. **How is the cluster ingress reachable over the tailnet?** Pi-hole can answer
    `*.atlas.lan`, but the A record points at Traefik node IPs (`10.0.0.110-113`)
