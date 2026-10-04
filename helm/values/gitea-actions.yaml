@@ -13,6 +13,12 @@ existingSecretKey: token
 
 statefulset:
   replicas: 1
+  # Argo CD reports API-server-defaulted StatefulSet fields (retention policy,
+  # probe/container defaults, volumeClaimTemplates kind) as OutOfSync even
+  # though the API server sets them correctly. Ignore live-only fields so the
+  # Application stays Synced.
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
   persistence:
     size: 1Gi
   extraVolumes:
