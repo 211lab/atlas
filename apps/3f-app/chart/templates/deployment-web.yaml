@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 3f-app-web
+  labels:
+    app: 3f-app-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: 3f-app-web
+  template:
+    metadata:
+      labels:
+        app: 3f-app-web
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecrets }}
+      containers:
+        - name: web
+          image: "{{ .Values.webImage }}:{{ .Values.webTag }}"
+          ports:
+            - containerPort: {{ .Values.web.port }}
+          env:
+            # Vite (dev server) reads VITE_* from the process environment.
+            - name: VITE_API_URL
+              value: {{ .Values.web.apiUrl | quote }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.web.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}

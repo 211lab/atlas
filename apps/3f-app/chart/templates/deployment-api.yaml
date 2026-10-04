@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 3f-app-api
+  labels:
+    app: 3f-app-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: 3f-app-api
+  template:
+    metadata:
+      labels:
+        app: 3f-app-api
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecrets }}
+      containers:
+        - name: api
+          image: "{{ .Values.apiImage }}:{{ .Values.apiTag }}"
+          # The image's default CMD runs uvicorn with --reload; drop it here.
+          args:
+            - uv
+            - run
+            - --frozen
+            - --extra
+            - dev
+            - uvicorn
+            - threef.app:app
+            - --app-dir
+            - src
+            - --host
+            - 0.0.0.0
+            - --port
+            - "{{ .Values.api.port }}"
+          ports:
+            - containerPort: {{ .Values.api.port }}
+          env:
+            - name: THREEF_DEVELOPMENT_MODE
+              value: {{ .Values.api.developmentMode | quote }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.api.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.api.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}

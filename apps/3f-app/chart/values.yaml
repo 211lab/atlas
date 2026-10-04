@@ -1,0 +1,39 @@
+apiImage: registry.atlas.lan/atlas-admin/3f-app-api
+webImage: registry.atlas.lan/atlas-admin/3f-app-web
+apiTag: v0.1.0
+webTag: v0.1.0
+
+imagePullSecrets: gitea-registry
+
+api:
+  port: 8000
+  # Auth is not implemented yet, so the app relies on its development-mode
+  # account switcher. Keep internal-only until a real identity layer lands.
+  developmentMode: "true"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+web:
+  port: 5173
+  # Absolute same-origin URL: the ingress routes /api to the API, so the PWA
+  # and its API share the browser origin and the backend CORS list is untouched.
+  apiUrl: https://3fapp.atlas.lan
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 384Mi
+
+ingress:
+  enabled: true
+  className: traefik
+  host: 3fapp.atlas.lan
+  annotations:
+    cert-manager.io/cluster-issuer: atlas-ca
+    traefik.ingress.kubernetes.io/router.middlewares: 3f-app-3f-app-ipallow@kubernetescrd
+  tlsSecretName: 3f-app-tls
