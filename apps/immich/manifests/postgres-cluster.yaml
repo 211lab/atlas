@@ -1,0 +1,40 @@
+# PostgreSQL for Immich, managed by the CloudNativePG operator.
+#
+# Immich v3 needs the `vchord` extension (a pgvector-compatible vector index).
+# The base image is the stock CNPG PostgreSQL 18 image; the vchord extension is
+# loaded from the tensorchord extension image via CNPG's extension management.
+# The extensions themselves are created by the sibling Database CR
+# (postgres-database.yaml) once the cluster is up.
+#
+# The operator auto-generates the `<cluster>-app` secret consumed by Immich
+# (host, user, password, dbname), so no password is committed here.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-database
+  namespace: immich
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
+  storage:
+    storageClass: truenas-nfs
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 2Gi
+  postgresql:
+    shared_preload_libraries:
+      - vchord.so
+    extensions:
+      - name: vchord
+        image:
+          reference: ghcr.io/tensorchord/vchord-scratch:pg18-v1.1.1
+        dynamic_library_path:
+          - /usr/lib/postgresql/18/lib
+        extension_control_path:
+          - /usr/share/postgresql/18/

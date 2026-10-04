@@ -1,0 +1,120 @@
+# Immich helm values (atlas)
+# Chart: oci://ghcr.io/immich-app/immich-charts/immich   Verified: 0.13.2 (Immich v3.2.0)
+#
+# Immich v3 ships no bundled database: it needs an external PostgreSQL with the
+# `vchord` (and vector/cube/earthdistance) extensions. Here that is the
+# CloudNativePG cluster `immich-database` created from
+# apps/immich/manifests/ (see gitops/apps/cnpg.yaml + gitops/apps/immich.yaml).
+# Redis is enabled in-chart as the bundled valkey.
+#
+# The photo library PVC is created separately (apps/immich/manifests/library-pvc.yaml)
+# and referenced via immich.persistence.library.existingClaim, exactly as the
+# chart requires.
+
+# Inherited by every component (server, machine-learning, valkey) via the
+# bjw-s common library merge in the chart templates.
+controllers:
+  main:
+    containers:
+      main:
+        image:
+          tag: v3.2.0
+        env:
+          REDIS_HOSTNAME: '{{ printf "%s-valkey" .Release.Name }}'
+          IMMICH_MACHINE_LEARNING_URL: '{{ printf "http://%s-machine-learning:3003" .Release.Name }}'
+
+server:
+  enabled: true
+  controllers:
+    main:
+      containers:
+        main:
+          # Connection details come from the secret CloudNativePG generates for
+          # the cluster (`<cluster>-app`: host, user, password, dbname).
+          env:
+            DB_HOSTNAME:
+              valueFrom:
+                secretKeyRef:
+                  name: immich-database-app
+                  key: host
+            DB_USERNAME:
+              valueFrom:
+                secretKeyRef:
+                  name: immich-database-app
+                  key: user
+            DB_PASSWORD:
+              valueFrom:
+                secretKeyRef:
+                  name: immich-database-app
+                  key: password
+            DB_DATABASE_NAME:
+              valueFrom:
+                secretKeyRef:
+                  name: immich-database-app
+                  key: dbname
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+  ingress:
+    main:
+      enabled: true
+      className: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: atlas-ca
+      hosts:
+        - host: immich.atlas.lan
+          paths:
+            - path: /
+              pathType: Prefix
+              service:
+                identifier: main
+                port: http
+      tls:
+        - secretName: immich-tls
+          hosts:
+            - immich.atlas.lan
+
+machine-learning:
+  enabled: true
+  controllers:
+    main:
+      containers:
+        main:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 4Gi
+  # Cache downloaded ML models on shared storage so they are not re-fetched on
+  # every restart; the library itself lives on the shared `immich-library` PVC.
+  persistence:
+    cache:
+      enabled: true
+      type: persistentVolumeClaim
+      storageClass: truenas-nfs
+      size: 10Gi
+      accessMode: ReadWriteMany
+
+valkey:
+  enabled: true
+  controllers:
+    main:
+      containers:
+        main:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+
+immich:
+  metrics:
+    enabled: false
+  persistence:
+    library:
+      existingClaim: immich-library

@@ -1,0 +1,17 @@
+# CloudNativePG operator helm values (atlas)
+# Chart: cloudnative-pg/cloudnative-pg   Verified: 0.29.1 (operator v1.30.1)
+#
+# Only the operator is installed here. The Immich PostgreSQL Cluster CR and its
+# Database CR are deployed alongside the Immich app themselves
+# (apps/immich/manifests/), so the database lifecycle tracks the app.
+
+# Install the Cluster / Database / ... CRDs with the operator.
+crds:
+  create: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi

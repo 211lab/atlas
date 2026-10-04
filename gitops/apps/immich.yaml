@@ -1,0 +1,41 @@
+# Immich (photo/video library). Three sources:
+#   1. the upstream OCI chart (pinned version) with atlas values from git;
+#   2. the atlas repo as the `$values` reference for the value file;
+#   3. the atlas repo's raw manifests: library PVC + CloudNativePG Cluster/Database.
+#
+# Depends on the cloudnative-pg Application (sync-wave -1) for the CRDs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: immich
+  sources:
+    - repoURL: ghcr.io/immich-app/immich-charts/immich
+      chart: immich
+      targetRevision: 0.13.2
+      helm:
+        releaseName: immich
+        valueFiles:
+          - $values/helm/values/immich.yaml
+    - repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+      targetRevision: main
+      ref: values
+    - repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+      targetRevision: main
+      path: apps/immich/manifests
+      directory:
+        recurse: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true
