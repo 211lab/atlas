@@ -1,7 +1,7 @@
 apiImage: registry.atlas.lan/atlas-admin/3f-app-api
 webImage: registry.atlas.lan/atlas-admin/3f-app-web
-apiTag: v0.1.0
-webTag: v0.1.0
+apiTag: v0.1.1
+webTag: v0.1.1
 
 imagePullSecrets: gitea-registry
 
