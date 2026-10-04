@@ -37,7 +37,9 @@ The self-hosted git forge (Gitea), build runner, and Argo CD delivery pipeline a
 
 The whole platform (compute, storage, networking, control, delivery) is mapped in [C4 architecture](docs/c4-architecture.md) with Context, Container, Component, and Deployment diagrams.
 
-An opencode agent skill that onboards an application end to end (add the `atlas` git remote, build, tag, deploy) lives at [`.opencode/skills/atlas-deploy-app`](.opencode/skills/atlas-deploy-app/SKILL.md).
+Agent and contributor guidance lives in [`AGENTS.md`](AGENTS.md) (how agents work in this repo) and [`CONTRIBUTING.md`](CONTRIBUTING.md) (branching, Conventional Commits, validation). The applications deployed through GitOps are catalogued in [Applications](docs/applications.md), with their charts, namespaces, ingresses, storage and secrets.
+
+opencode skills live under `.opencode/skills/`: [`atlas-deploy-app`](.opencode/skills/atlas-deploy-app/SKILL.md) onboards an application end to end (git remote, build, tag, deploy), and [`atlas-cluster`](.opencode/skills/atlas-cluster/SKILL.md) covers live cluster recon and operations.
 
 ## Process
 
@@ -92,6 +94,9 @@ systemctl status pvestatd
 
 ## Docs
 
+- [Agent instructions](AGENTS.md) — how agents work in this repo: access, conventions, validation, guardrails
+- [Contributing](CONTRIBUTING.md) — branching, Conventional Commits, validation, and the change/review process
+- [Applications](docs/applications.md) — catalog of GitOps apps (demo-app, redop, immich) with charts, namespaces, ingress, storage and secrets
 - [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
 - [C4 architecture](docs/c4-architecture.md) — Context, Container, Component and Deployment diagrams for compute, storage, networking, control, and delivery
 - [Dedicated Pi-hole DNS](docs/pihole-dns.md) — Ansible provisioning of a dedicated Pi-hole plus automatic Ingress-to-DNS registration (ExternalDNS / dnsweaver)

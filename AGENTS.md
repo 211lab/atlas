@@ -120,3 +120,20 @@ kubectl -n <ns> get deploy,po,ingress,certificate
 - `docs/gitops-platform.md` says to re-seal `atlas-ca` ConfigMaps; the live CA
   is the `atlas-ca-tls` Secret, and `atlas-ca` ConfigMaps exist only in
   `argocd` and `gitea` (not `cert-manager`).
+
+## Open work / pending decisions
+
+In flight in this repo — extend rather than duplicate or contradict:
+
+- **`docs/adr-service-naming-reachability`** — ADR 0001 (service naming and
+  reachability: `atlas.lan` is the canonical namespace, Pi-hole becomes a
+  Tailscale DNS resolver, `*.ts.net` for publicly-trusted TLS). Status:
+  *Proposed*; not on `main` yet.
+- **`feat/pihole-dns-autoregistration`** — a dedicated Pi-hole Ansible role,
+  `docs/pihole-dns.md`, an `external-dns` Application + `helm/values/external-dns.yaml`,
+  and `gitops/sealed/pihole-api.yaml` for automatic Ingress DNS registration. The
+  empty `external-dns` namespace on the cluster is a remnant of this work.
+- **`feat/immich`** — Immich + CloudNativePG deployment (see
+  [Applications](docs/applications.md)).
+- `apps/redop/chart/values.yaml` cites "ADR 0003", but no `docs/adr/` exists on
+  `main` yet — ADR numbering is not established here.

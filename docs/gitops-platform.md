@@ -9,17 +9,24 @@
 
 ## Current deployed platform
 
-Verified 2026-10-02.
+Verified 2026-10-04.
 
 | Component | Chart | Version | Namespace | Access |
 | --- | --- | --- | --- | --- |
 | cert-manager | `jetstack/cert-manager` | v1.21.2 | cert-manager | internal |
 | Sealed Secrets | `bitnamicharts/sealed-secrets` (OCI) | 2.5.19 / controller 0.40.0 | sealed-secrets | internal |
-| Gitea (+ bundled PostgreSQL) | `gitea/gitea` | 12.7.0 / Gitea 1.27.0 | gitea | https://git.atlas.lan |
+| Gitea (+ bundled PostgreSQL 17) | `gitea/gitea` | 12.7.0 / Gitea 1.27.0 | gitea | https://git.atlas.lan |
 | Container registry | Gitea built-in | — | gitea | https://registry.atlas.lan |
 | Gitea Actions runner | `gitea/actions` | 0.1.2 / runner 2.0.1 | gitea | — |
 | Argo CD | `argo/argo-cd` | 10.9.6 / v3.5.3 | argocd | https://argocd.atlas.lan |
-| Demo app | in-repo chart | 0.1.0 | demo | https://demo.atlas.lan |
+| kube-prometheus-stack | `prometheus-community/kube-prometheus-stack` | 88.3.0 / operator v0.93.0 | monitoring | Grafana `http://<node>:3000` |
+| demo-app | in-repo `examples/demo-app/chart` | 0.1.0 | demo | https://demo.atlas.lan |
+| redop | in-repo `apps/redop/chart` | 0.1.0 / v0.4.6 | redop | https://redop.atlas.lan |
+| immich | OCI `immich-charts/immich` + CloudNativePG | 0.13.2 / v3.2.0 (pending `feat/immich`) | immich | https://immich.atlas.lan |
+
+See [Applications](applications.md) for the app catalog (charts, namespaces,
+ingress, storage, secrets) and [`AGENTS.md`](../AGENTS.md) for the
+agent/contributor contract and known drift.
 
 Ansible-managed cluster access (SSH, API, Proxmox) is documented separately in
 [Kubernetes control plane](kubernetes-control-plane.md).
