@@ -90,6 +90,34 @@ systemctl status pvestatd
 
 - Updated `control` user with passwordless login and using local ssh key `id_rsa_control`
 
+## Secret scanning
+
+Sensitive values – API keys, tokens, private keys, and Tailscale identities
+(`tskey-*` auth keys, `*.ts.net` MagicDNS names, and CGNAT tailnet IPs) – are
+kept out of the repository by a [gitleaks](https://github.com/gitleaks/gitleaks)
+config (`.gitleaks.toml`) that runs in two places:
+
+- **Locally, before every commit**, via the tracked hook in `.githooks/`. Enable
+  it once per clone:
+
+  ```sh
+  git config core.hooksPath .githooks
+  ```
+
+- **In CI, over the full history**, on every push and pull request (see
+  `.github/workflows/gitleaks.yml`).
+
+To scan manually:
+
+```sh
+gitleaks git --config .gitleaks.toml --redact            # whole history
+gitleaks git --staged --config .gitleaks.toml --redact   # staged changes only
+```
+
+Encrypted `SealedSecret` ciphertext under `gitops/sealed/` is allowlisted; the
+sealing private key is never committed. Internal `10.0.0.0/8` addresses and
+`*.atlas.lan` names are intentionally public; tailnet identities are not.
+
 ## Docs
 
 - [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
