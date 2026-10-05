@@ -37,14 +37,14 @@ spec:
               containerPort: {{ .Values.ui.port }}
           readinessProbe:
             httpGet:
-              path: /
+              path: /screens
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
           livenessProbe:
             httpGet:
-              path: /
+              path: /screens
               port: http
             initialDelaySeconds: 30
             periodSeconds: 20

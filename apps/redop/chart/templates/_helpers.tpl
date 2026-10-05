@@ -44,6 +44,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- printf "%s/%s:%s" .Values.image.registry .Values.ui.repository $tag -}}
 {{- end -}}
 
+{{- define "redop.cockpitImage" -}}
+{{- $tag := .Values.cockpitTag | default .Chart.AppVersion -}}
+{{- printf "%s/%s:%s" .Values.image.registry .Values.cockpit.repository $tag -}}
+{{- end -}}
+
 {{- define "redop.workerImage" -}}
 {{- $tag := .Values.apiTag | default .Chart.AppVersion -}}
 {{- printf "%s/%s:%s" .Values.image.registry .Values.worker.repository $tag -}}

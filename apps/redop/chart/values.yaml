@@ -15,6 +15,7 @@
 # Image tags promoted by CI. Empty falls back to the chart appVersion.
 apiTag: sha-e11b6ac
 uiTag: sha-e11b6ac
+cockpitTag: sha-e11b6ac
 
 image:
   registry: registry.atlas.lan
@@ -52,7 +53,8 @@ api:
 
 # The thin Next.js UI. Holds no RED business logic (ADR 0007); calls the API
 # same-origin under `/red`, so `NEXT_PUBLIC_RED_API_BASE` is empty at build
-# time and no runtime env is required.
+# time and no runtime env is required. ADR 0012: the cockpit owns the root, so
+# this UI is served under `/screens` (built with NEXT_PUBLIC_RED_BASE_PATH).
 ui:
   repository: atlas-admin/redop-ui
   replicas: 1
@@ -64,6 +66,23 @@ ui:
     limits:
       cpu: 500m
       memory: 768Mi
+
+# The OpenExecutive cockpit UI (ADR 0012), rebranded RED through the ADR 0011
+# overlay. It owns the root and proxies `/api/backend/*` to the mounted
+# OpenExecutive backend at `/openexecutive`, sending `x-api-key` from
+# BACKEND_SHARED_SECRET. Auth is disabled (internal-only).
+cockpit:
+  repository: atlas-admin/redop-cockpit
+  replicas: 1
+  port: 3000
+  resources:
+    requests:
+      cpu: 150m
+      memory: 384Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  backendBaseUrl: http://redop-api:8000/openexecutive
 
 # The background worker. No RED worker entrypoint exists yet (the workflow
 # resume use case has no composition consumer), so it is disabled by default;

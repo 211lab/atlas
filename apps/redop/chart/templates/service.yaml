@@ -31,3 +31,20 @@ spec:
     - name: http
       port: {{ .Values.ui.port }}
       targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redop.fullname" . }}-cockpit
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cockpit
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "redop.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: cockpit
+  ports:
+    - name: http
+      port: {{ .Values.cockpit.port }}
+      targetPort: http

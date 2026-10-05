@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "redop.fullname" . }}-cockpit
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cockpit
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  replicas: {{ .Values.cockpit.replicas }}
+  selector:
+    matchLabels:
+      {{- include "redop.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: cockpit
+  template:
+    metadata:
+      labels:
+        {{- include "redop.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: cockpit
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: cockpit
+          image: {{ include "redop.cockpitImage" . }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{ .Values.cockpit.port }}
+          env:
+            # The cockpit's /api/backend proxy forwards to the mounted
+            # OpenExecutive app and authenticates with x-api-key.
+            - name: BACKEND_BASE_URL
+              value: {{ .Values.cockpit.backendBaseUrl | quote }}
+            - name: BACKEND_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: BACKEND_SHARED_SECRET
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: AUTH_SECRET
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.cockpit.resources | nindent 12 }}
