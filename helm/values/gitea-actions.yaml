@@ -29,16 +29,18 @@ statefulset:
     resources:
       requests:
         cpu: 50m
-        memory: 128Mi
-      limits:
-        memory: 512Mi
-  dind:
-    resources:
-      requests:
-        cpu: 50m
         memory: 256Mi
       limits:
-        memory: 1536Mi
+        memory: 1Gi
+  dind:
+    # The cockpit `next build` OOM-killed at 1536Mi (2026-10-05). Raise the
+    # Docker-in-Docker limit so the RED UI/cockpit images build in CI.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 1Gi
+      limits:
+        memory: 4Gi
     extraVolumeMounts:
       - name: atlas-ca
         mountPath: /etc/docker/certs.d/registry.atlas.lan/ca.crt
