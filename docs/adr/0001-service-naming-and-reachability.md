@@ -102,19 +102,20 @@ flowchart TD
 
 ### Current status
 
-The naming/reachability pieces are now declared in this repo but are not yet
-live (see [Dedicated Pi-hole DNS](../pihole-dns.md)):
+The naming/reachability pieces are **live** (see
+[Dedicated Pi-hole DNS](../pihole-dns.md)):
 
-- The dedicated Pi-hole host (`10.0.0.10`, `pihole.atlas.lan`) is **not
-  provisioned** — run `ansible/playbooks/pihole.yaml`.
-- `gitops/apps/external-dns.yaml` + `helm/values/external-dns.yaml` declare
-  ExternalDNS with the Pi-hole webhook provider, but `gitops/sealed/pihole-api.yaml`
-  is a **placeholder** that will not authenticate; re-seal the real app password
-  before relying on it.
-- `pihole.atlas.lan` must resolve for in-cluster clients (CoreDNS) before
-  ExternalDNS can reach the Pi-hole API.
-- Until then, `.lan` resolution remains in-cluster only (CoreDNS
-  `coredns-custom`) plus workstation `/etc/hosts` entries.
+- The dedicated Pi-hole runs as an unprivileged LXC on `memex` (`10.0.0.10`,
+  `pihole.atlas.lan`), provisioned by `ansible/playbooks/pihole.yaml` /
+  `proxmox-create-pihole-lxc.yml`.
+- `gitops/apps/external-dns.yaml` + `helm/values/external-dns.yaml` run
+  ExternalDNS with the Pi-hole webhook provider; `gitops/sealed/pihole-api.yaml`
+  is sealed with the real app password.
+- `pihole.atlas.lan` resolves for in-cluster clients via CoreDNS
+  (`coredns-custom`); ExternalDNS writes each Ingress host as an A record.
+- Network cutover (router/DHCP pointing at `10.0.0.10`) is the remaining manual
+  step; until then, LAN `.lan` resolution also relies on workstation
+  `/etc/hosts` entries.
 
 ## Follow-up items (tracked; not blocking acceptance)
 

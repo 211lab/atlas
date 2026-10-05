@@ -5,11 +5,11 @@
 > (accepted) and [Dedicated Pi-hole DNS](pihole-dns.md). This page is the
 > step-by-step execution order, its verification, and its rollback.
 >
-> **Status:** declared in git, **not live**. The Pi-hole host
-> (`10.0.0.10`) is not provisioned and `gitops/sealed/pihole-api.yaml` is a
-> placeholder that will not authenticate. Until this runbook is completed,
-> `*.atlas.lan` resolves only in-cluster (CoreDNS `coredns-custom`) and via
-> workstation `/etc/hosts` entries.
+> **Status:** live. The Pi-hole LXC (`10.0.0.10`, unprivileged on `memex`)
+> is provisioned, `gitops/sealed/pihole-api.yaml` is sealed with the real app
+> password, and ExternalDNS writes Ingress hosts into it. `*.atlas.lan`
+> resolves network-wide via Pi-hole, in-cluster via CoreDNS, and (as a fallback)
+> via workstation `/etc/hosts` entries.
 
 ## Outcome
 
