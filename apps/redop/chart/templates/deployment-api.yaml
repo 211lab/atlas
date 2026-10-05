@@ -44,7 +44,7 @@ spec:
               set -eu
               ns="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
               token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
-              url="https://kubernetes.default.svc/apis/batch/v1/namespaces/${ns}/jobs/{{ include "redop.migrationJobName" . }}/status"
+              url="https://kubernetes.default.svc/apis/batch/v1/namespaces/${ns}/jobs/{{ include "redop.migrationJobName" . }}"
               i=0
               while [ "$i" -lt 120 ]; do
                 code="$(curl -s -o /tmp/job-status -w '%{http_code}' -k \
