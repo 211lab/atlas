@@ -1,0 +1,8 @@
+# Local environment files and secrets — never commit.
+.env
+.env.*
+*.env
+*.secret
+*.secrets
+vault*.yml
+vault*.yaml

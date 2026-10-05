@@ -1,0 +1,86 @@
+---
+# Create and (idempotently) ensure an unprivileged Proxmox LXC container.
+
+- name: Derive deterministic container ID from name
+  ansible.builtin.set_fact:
+    vmid_derived: "{{ vmid_base + (((ct_name | hash('sha1'))[:vmid_hash_prefix_length] | int(base=16)) % vmid_range) }}"
+  when: vmid | string | length == 0
+
+- name: Select requested container ID
+  ansible.builtin.set_fact:
+    vmid_resolved: "{{ (vmid | string | length > 0) | ternary(vmid, vmid_derived) }}"
+
+- name: Check whether the container already exists
+  ansible.builtin.command:
+    cmd: pct status {{ vmid_resolved }}
+  register: ct_exists
+  failed_when: false
+  changed_when: false
+
+- name: List available LXC templates
+  ansible.builtin.command:
+    cmd: pveam list {{ template_storage }}
+  register: pveam_list
+  changed_when: false
+  when: ct_exists.rc != 0
+
+- name: Download the LXC template when missing
+  ansible.builtin.command:
+    cmd: pveam download {{ template_storage }} {{ template }}
+  when:
+    - ct_exists.rc != 0
+    - template not in pveam_list.stdout
+  changed_when: true
+
+- name: Ensure the Proxmox host root SSH directory exists
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: ct_exists.rc != 0
+
+- name: Stage the Ansible public key on the Proxmox host
+  ansible.builtin.copy:
+    dest: "/root/.ssh/{{ ct_name }}_authorized_keys"
+    content: "{{ lookup('file', ssh_public_key_file) }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  when: ct_exists.rc != 0
+
+- name: Create the container
+  ansible.builtin.command:
+    cmd: >-
+      pct create {{ vmid_resolved }}
+      {{ template_storage }}:vztmpl/{{ template }}
+      --hostname {{ ct_hostname }}
+      --cores {{ ct_cores }}
+      --memory {{ ct_memory }}
+      --swap {{ ct_swap }}
+      --rootfs {{ storage }}:{{ ct_disk_size }}
+      --net0 name=eth0,bridge={{ bridge }},ip={{ ip_address }},gw={{ gateway }}
+      --nameserver {{ nameserver }}
+      --searchdomain {{ searchdomain }}
+      --ostype {{ ostype }}
+      --unprivileged {{ unprivileged | int }}
+      --features {{ features | join(',') }}
+      --onboot {{ onboot | int }}
+      --ssh-public-keys /root/.ssh/{{ ct_name }}_authorized_keys
+  when: ct_exists.rc != 0
+  changed_when: true
+
+- name: Read container state
+  ansible.builtin.command:
+    cmd: pct status {{ vmid_resolved }}
+  register: ct_state
+  changed_when: false
+
+- name: Start the container
+  ansible.builtin.command:
+    cmd: pct start {{ vmid_resolved }}
+  when:
+    - start_container | bool
+    - "'running' not in ct_state.stdout"
+  changed_when: true

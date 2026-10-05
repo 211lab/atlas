@@ -1,0 +1,41 @@
+---
+# Reusable Proxmox LXC role. Creates an unprivileged system container via
+# `pct` on the target Proxmox host. Override any of these per host/vars file.
+
+# Identity / ID
+vmid: ""
+vmid_base: 10000
+vmid_range: 90000
+vmid_hash_prefix_length: 8
+ct_name: pihole
+ct_hostname: "{{ ct_name }}"
+
+# Resources (an LXC --memory is a cgroup cap, not a reservation)
+ct_cores: 1
+ct_memory: 256
+ct_swap: 256
+ct_disk_size: 4
+
+# Placement
+storage: local-lvm
+bridge: vmbr0
+ostype: debian
+unprivileged: true
+features:
+  - nesting=1
+  - keyctl=1
+onboot: true
+start_container: true
+
+# Template
+template_storage: local
+template: debian-12-standard_12.12-1_amd64.tar.zst
+
+# Network
+ip_address: 10.0.0.10/24
+gateway: 10.0.0.1
+nameserver: 1.1.1.1
+searchdomain: atlas.lan
+
+# Access: public key installed into the container's root account at create time
+ssh_public_key_file: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa_control.pub"

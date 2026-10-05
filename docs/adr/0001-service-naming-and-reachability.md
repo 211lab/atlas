@@ -105,7 +105,7 @@ flowchart TD
 The naming/reachability pieces are now declared in this repo but are not yet
 live (see [Dedicated Pi-hole DNS](../pihole-dns.md)):
 
-- The dedicated Pi-hole host (`10.0.0.107`, `pihole.atlas.lan`) is **not
+- The dedicated Pi-hole host (`10.0.0.10`, `pihole.atlas.lan`) is **not
   provisioned** — run `ansible/playbooks/pihole.yaml`.
 - `gitops/apps/external-dns.yaml` + `helm/values/external-dns.yaml` declare
   ExternalDNS with the Pi-hole webhook provider, but `gitops/sealed/pihole-api.yaml`

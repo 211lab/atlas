@@ -1,0 +1,32 @@
+---
+# Pi-hole LXC on the memex Proxmox host.
+# Usage:
+#   ansible-playbook ansible/playbooks/proxmox-create-pihole-lxc.yml \
+#     -e @ansible/vars/memex-pihole-lxc.yml -l memex
+
+ct_name: pihole
+ct_hostname: pihole
+
+# An LXC --memory is a cgroup cap, not a reservation. 256 MiB is ample for the
+# memory-lean Pi-hole profile baked into the pihole role.
+ct_cores: 1
+ct_memory: 256
+ct_swap: 256
+ct_disk_size: 4
+
+storage: local-lvm
+bridge: vmbr0
+
+template_storage: local
+template: debian-12-standard_12.12-1_amd64.tar.zst
+
+ip_address: 10.0.0.10/24
+gateway: 10.0.0.1
+nameserver: 1.1.1.1
+searchdomain: atlas.lan
+
+unprivileged: true
+onboot: true
+start_container: true
+
+ssh_public_key_file: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa_control.pub"

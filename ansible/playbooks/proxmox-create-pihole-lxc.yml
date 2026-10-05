@@ -1,0 +1,9 @@
+---
+# Create the Pi-hole LXC container on the memex Proxmox host.
+# Values (resources, address, template) live in ansible/vars/memex-pihole-lxc.yml.
+- name: Create the Pi-hole LXC container
+  hosts: memex
+  become: true
+
+  roles:
+    - proxmox_lxc

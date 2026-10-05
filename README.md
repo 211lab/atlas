@@ -107,6 +107,7 @@ sealing private key is never committed. Internal `10.0.0.0/8` addresses and
 - [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
 - [C4 architecture](docs/c4-architecture.md) — Context, Container, Component and Deployment diagrams for compute, storage, networking, control, and delivery
 - [Dedicated Pi-hole DNS](docs/pihole-dns.md) — Ansible provisioning of a dedicated Pi-hole plus automatic Ingress-to-DNS registration (ExternalDNS / dnsweaver)
+- [Proxmox Pi-hole LXC](ansible/docs/proxmox-pihole-lxc.md) — create and tune the Pi-hole container on `memex`
 - [Pi-hole DNS runbook](docs/pihole-runbook.md) — step-by-step: provision, seal the API password, wire the cluster, deploy ExternalDNS, verify, roll back
 - [GitOps platform](docs/gitops-platform.md) — Gitea forge, container registry, Actions CI, Argo CD app-of-apps, image promotion, secrets, and storage
 - [Control user bootstrap](ansible/docs/control-user.md)

@@ -1,8 +1,0 @@
-# {{ ansible_managed }}
-# Static local DNS records. Dynamic cluster service records are managed by the
-# in-cluster DNS automation (see docs/pihole-dns.md), not this file.
-{% for record in pihole_local_records %}
-{% for name in record.names %}
-{{ record.ip }} {{ name }}
-{% endfor %}
-{% endfor %}

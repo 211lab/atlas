@@ -1,6 +1,9 @@
 baremetal:
   vars:
-    ansible_user: root
+    ansible_user: control
+    ansible_ssh_private_key_file: ~/.ssh/id_rsa_control
+    ansible_become: true
+    ansible_become_user: root
   hosts:
     turing:
       ansible_host: 10.0.0.101
@@ -18,16 +21,22 @@ baremetal:
 services:
   vars:
     ansible_user: control
+    ansible_ssh_private_key_file: ~/.ssh/id_rsa_control
+    ansible_become: true
+    ansible_become_user: root
   hosts:
     agent:
       ansible_host: 10.0.10.155
 
 dns:
   vars:
-    ansible_user: root
+    ansible_user: control
+    ansible_ssh_private_key_file: ~/.ssh/id_rsa_control
+    ansible_become: true
+    ansible_become_user: root
   hosts:
     pihole:
-      ansible_host: 10.0.0.107
+      ansible_host: 10.0.0.10
       hostname: pihole.atlas.lan
 
 local:

@@ -33,16 +33,17 @@ resolution via CoreDNS; this document adds network-wide resolution.
 
 ### 1.1 Choose the device and address
 
-Any always-on Linux host works: a Raspberry Pi, a small VM on Proxmox, or an
-LXC. Give it a **static address** and reserve it in your router. This runbook
-assumes:
+This project provisions Pi-hole as an unprivileged **LXC container on the
+`memex` Proxmox host** (created with the `proxmox_lxc` Ansible role). Give it a
+**static address** and reserve it in your router. This runbook assumes:
 
 | Item | Value |
 | --- | --- |
 | Inventory host | `pihole` |
-| Address | `10.0.0.107` (example; adjust) |
+| Address | `10.0.0.10` |
 | Hostname | `pihole.atlas.lan` |
-| OS | Debian 12 / Ubuntu 22.04+ |
+| Host | LXC on Proxmox `memex` |
+| OS | Debian 12 |
 
 Add the host to `inventory.yml` (already added — edit the address for your lab):
 
@@ -52,20 +53,24 @@ dns:
     ansible_user: root
   hosts:
     pihole:
-      ansible_host: 10.0.0.107
+      ansible_host: 10.0.0.10
       hostname: pihole.atlas.lan
 ```
 
-### 1.2 Bootstrap access
+### 1.2 Create the container and bootstrap access
 
-Like the other hosts, the `pihole` VM should accept the `control` user key. If it
-is a fresh Proxmox VM, run the cloud-init role first, then bootstrap the control
-user:
+Create the LXC on `memex` (it is created with the `control` public key already
+installed for `root`), then bootstrap the `control` user inside it:
 
 ```sh
-ansible-playbook ansible/playbooks/bootstrap-control.yaml -l dns -u root -k
+ansible-playbook ansible/playbooks/proxmox-create-pihole-lxc.yml \
+  -e @ansible/vars/memex-pihole-lxc.yml -l memex
+ansible-playbook ansible/playbooks/bootstrap-control.yaml -l dns -u root
 ansible all -i inventory.yml -l dns -m ping -o
 ```
+
+See [Proxmox Pi-hole LXC](../ansible/docs/proxmox-pihole-lxc.md) for the
+container spec and the memory-lean profile.
 
 ### 1.3 Install and configure Pi-hole
 
@@ -93,13 +98,13 @@ Static record example:
 ```yaml
 # extra-vars
 pihole_local_records:
-  - { ip: "10.0.0.107", names: ["pihole.atlas.lan", "dns.atlas.lan"] }
+  - { ip: "10.0.0.10", names: ["pihole.atlas.lan", "dns.atlas.lan"] }
   - { ip: "10.0.0.1",   names: ["router.lan", "gw.lan"] }
 ```
 
 ### 1.4 Point the network at Pi-hole
 
-1. **Router / DHCP**: advertise `10.0.0.107` as the primary DNS server (keep a
+1. **Router / DHCP**: advertise `10.0.0.10` as the primary DNS server (keep a
    public resolver as secondary only for fallback).
 2. **Pi-hole upstreams**: keep public resolvers so non-lab names resolve.
 3. **Local domain**: Pi-hole answers `atlas.lan` and `lan` from its local
@@ -108,8 +113,8 @@ pihole_local_records:
 ### 1.5 Verify
 
 ```sh
-dig +short @10.0.0.107 pihole.atlas.lan
-dig +short @10.0.0.107 dns.google     # forwarded
+dig +short @10.0.0.10 pihole.atlas.lan
+dig +short @10.0.0.10 dns.google     # forwarded
 ```
 
 ## Part 2 — Automatically register cluster services
@@ -141,7 +146,7 @@ it never touches other Pi-hole records.
 ### 2.2 Deploy it (GitOps)
 
 1. Set the Pi-hole address in `helm/values/external-dns.yaml`
-   (`PIHOLE_SERVER`), e.g. `http://pihole.atlas.lan` or `http://10.0.0.107`.
+   (`PIHOLE_SERVER`), e.g. `http://pihole.atlas.lan` or `http://10.0.0.10`.
 2. Seal the Pi-hole **app password** (Pi-hole v6 → Settings → API, or your
    admin password) — the committed `gitops/sealed/pihole-api.yaml` is a
    placeholder and must be replaced:
@@ -165,7 +170,7 @@ it never touches other Pi-hole records.
 kubectl -n argocd get application external-dns
 kubectl -n external-dns logs deploy/external-dns --tail=50
 # a record for an existing Ingress should now answer from Pi-hole:
-dig +short @10.0.0.107 demo.atlas.lan
+dig +short @10.0.0.10 demo.atlas.lan
 ```
 
 ### 2.4 Alternative: dnsweaver (homelab-focused, Pi-hole native)

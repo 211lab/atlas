@@ -8,6 +8,7 @@ data:
     atlas.lan:53 {
         hosts {
             10.43.186.184 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan
+            10.0.0.10     pihole.atlas.lan
             fallthrough
         }
     }

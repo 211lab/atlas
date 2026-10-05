@@ -6,7 +6,7 @@
 > step-by-step execution order, its verification, and its rollback.
 >
 > **Status:** declared in git, **not live**. The Pi-hole host
-> (`10.0.0.107`) is not provisioned and `gitops/sealed/pihole-api.yaml` is a
+> (`10.0.0.10`) is not provisioned and `gitops/sealed/pihole-api.yaml` is a
 > placeholder that will not authenticate. Until this runbook is completed,
 > `*.atlas.lan` resolves only in-cluster (CoreDNS `coredns-custom`) and via
 > workstation `/etc/hosts` entries.
@@ -26,7 +26,7 @@ LAN/tailnet clients ◀── Pi-hole answers app.atlas.lan ──────�
 
 | Item | Value | Where |
 | --- | --- | --- |
-| Pi-hole host | `pihole` / `10.0.0.107` | `inventory.yml` (`dns` group) |
+| Pi-hole host | `pihole` / `10.0.0.10` | `inventory.yml` (`dns` group) |
 | Hostname | `pihole.atlas.lan` | `pihole_hostname` default |
 | Cluster | k3s, Traefik on `10.0.0.110-113` | `KUBECONFIG=~/.kube/atlas-admin.yaml` |
 | GitOps | Argo CD app-of-apps `root` from Gitea `atlas-admin/atlas` | `gitops/apps/` |
@@ -44,33 +44,38 @@ kubeseal --fetch-cert --controller-name sealed-secrets-controller \
 
 ## Phase 1 — Provision the Pi-hole
 
-The host is a fresh Linux VM (Debian 12 / Ubuntu 22.04+). Follow
-[Dedicated Pi-hole DNS → Part 1](pihole-dns.md) for the host/address setup.
+The host is an unprivileged LXC container on the `memex` Proxmox host
+(`10.0.0.10`, Debian 12). Creation is automated; see
+[Proxmox Pi-hole LXC](../ansible/docs/proxmox-pihole-lxc.md) for the container
+spec and the memory-lean profile. The container is created with the `control`
+public key already installed for `root`.
 
 ```sh
-# 1. Bootstrap the control user on the new host (root, password auth once).
-ansible-playbook ansible/playbooks/bootstrap-control.yaml -l dns -u root -k
+# 1. Create and start the LXC on memex (resources/address in the vars file).
+ansible-playbook ansible/playbooks/proxmox-create-pihole-lxc.yml \
+  -e @ansible/vars/memex-pihole-lxc.yml -l memex
 
-# 2. Install and configure Pi-hole; supply the admin password from a secret
+# 2. Bootstrap the control user inside the container (root, key auth).
+ansible-playbook ansible/playbooks/bootstrap-control.yaml -l dns -u root
+
+# 3. Install and configure Pi-hole; supply the admin password from a secret
 #    manager, never shell history.
 ansible-playbook ansible/playbooks/pihole.yaml \
-  -e pihole_webpassword="$PIHOLE_ADMIN_PASSWORD"
+  -e pihole_webpassword="$PIHOLE_ADMIN_PASSWORD" \
+  -e 'pihole_local_records=[{"ip":"10.0.0.10","names":["pihole.atlas.lan","dns.atlas.lan"]},{"ip":"10.0.0.1","names":["router.lan","gw.lan"]}]'
 
-# 3. Verify the resolver answers.
-dig +short @10.0.0.107 pihole.atlas.lan
-dig +short @10.0.0.107 github.com      # forwarded upstream
+# 4. Verify the resolver answers.
+dig +short @10.0.0.10 pihole.atlas.lan
+dig +short @10.0.0.10 github.com      # forwarded upstream
 ```
 
 Notes:
 
-- The role installs Pi-hole v6 unattended and is idempotent.
-- Add static records (router, the Pi-hole itself) via `-e pihole_local_records`:
-  ```yaml
-  pihole_local_records:
-    - { ip: "10.0.0.107", names: ["pihole.atlas.lan", "dns.atlas.lan"] }
-    - { ip: "10.0.0.1",   names: ["router.lan", "gw.lan"] }
-  ```
-- The Pi-hole **app password** (Settings → API) is what ExternalDNS uses.
+- The role installs Pi-hole v6 unattended, is idempotent, and bakes in a
+  memory-lean FTL profile (`dns.cache.size 2000`, `database.maxDBdays 7`,
+  `dns.queryLogging false`, `misc.privacylevel 2`, `webserver.threads 10`).
+- The Pi-hole **app password** (Settings → API) is what ExternalDNS uses; it is
+  the same value as the admin password supplied above.
 
 ## Phase 2 — Seal the Pi-hole API password
 
@@ -100,13 +105,13 @@ ExternalDNS runs in-cluster and calls the Pi-hole API. Pick one:
       atlas.lan:53 {
           hosts {
               10.43.186.184 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan
-              10.0.0.107    pihole.atlas.lan
+              10.0.0.10    pihole.atlas.lan
               fallthrough
           }
       }
   ```
 
-- **Option B:** set `PIHOLE_SERVER: "http://10.0.0.107"` in
+- **Option B:** set `PIHOLE_SERVER: "http://10.0.0.10"` in
   `helm/values/external-dns.yaml` (removes the DNS dependency).
 
 ## Phase 4 — Deploy ExternalDNS through GitOps
@@ -142,7 +147,7 @@ kubectl -n argocd annotate application external-dns argocd.argoproj.io/refresh=h
 
 ## Phase 5 — Cut the network over to Pi-hole
 
-1. **Router / DHCP:** advertise `10.0.0.107` as the primary DNS server (public
+1. **Router / DHCP:** advertise `10.0.0.10` as the primary DNS server (public
    resolver only as fallback); reserve the Pi-hole's IP.
 2. **Pi-hole upstreams:** keep public resolvers so non-lab names resolve.
 3. **Tailnet (per ADR 0001):** make Pi-hole a Tailscale agent and set its tailnet
@@ -152,8 +157,8 @@ kubectl -n argocd annotate application external-dns argocd.argoproj.io/refresh=h
 
 ```sh
 # A record written from an Ingress host:
-dig +short @10.0.0.107 demo.atlas.lan
-dig +short @10.0.0.107 git.atlas.lan
+dig +short @10.0.0.10 demo.atlas.lan
+dig +short @10.0.0.10 git.atlas.lan
 
 # From a client that uses Pi-hole as its resolver:
 dig +short demo.atlas.lan
@@ -171,7 +176,7 @@ endpoint returns 200.
 | --- | --- |
 | ExternalDNS `Degraded`, logs show auth failure | `pihole-api` still the placeholder, or the app password changed. Re-run Phase 2. |
 | `dial tcp: lookup pihole.atlas.lan` in logs | Phase 3 not applied, or CoreDNS not reloaded. Add the record or use Option B. |
-| No records created | `dig @10.0.0.107` for the host; check ExternalDNS logs for `domainFilters`/ownership; confirm `sources` include `ingress`. |
+| No records created | `dig @10.0.0.10` for the host; check ExternalDNS logs for `domainFilters`/ownership; confirm `sources` include `ingress`. |
 | Records point at wrong IPs | Traefik Service status changed; re-check `kubectl -n kube-system get svc traefik`. |
 | Records deleted unexpectedly | `policy: sync` prunes records ExternalDNS owns within `domainFilters`; keep the filter to `atlas.lan`. |
 | In-cluster names fail | CoreDNS `coredns-custom` (Phase 3) is separate from the Pi-hole; verify both. |
@@ -181,7 +186,7 @@ Workstation fallback (`/etc/hosts`), until Pi-hole is the resolver:
 
 ```text
 10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan redop.atlas.lan immich.atlas.lan
-10.0.0.107 pihole.atlas.lan
+10.0.0.10 pihole.atlas.lan
 ```
 
 On WSL, `/etc/hosts` is regenerated on boot; set `[network] generateHosts=false`
