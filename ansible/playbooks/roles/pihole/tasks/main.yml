@@ -95,11 +95,14 @@
 # Merge (never replace) so we do not clobber records external-dns owns.
 - name: Apply static local DNS records (v6 dns.hosts, merged)
   ansible.builtin.command:
-    cmd: >-
-      pihole-FTL --config dns.hosts
-      {{ (((pihole_dns_hosts_current.stdout | default('[]') | trim)[1:-1]).split(',')
-          | map('trim') | select('!=', '') | list
-          + pihole_dns_hosts_entries) | unique | to_json }}
+    argv:
+      - pihole-FTL
+      - --config
+      - dns.hosts
+      - >-
+        {{ (((pihole_dns_hosts_current.stdout | default('[]') | trim)[1:-1]).split(',')
+            | map('trim') | select('!=', '') | list
+            + pihole_dns_hosts_entries) | unique | to_json }}
   when:
     - pihole_local_records | length > 0
     - >-
@@ -107,6 +110,34 @@
       | select('in', pihole_dns_hosts_current.stdout | default(''))
       | list | length
       < pihole_dns_hosts_entries | length
+  changed_when: true
+  notify: Restart pihole-FTL
+
+- name: Read current dnsmasq lines
+  ansible.builtin.command:
+    cmd: pihole-FTL --config misc.dnsmasq_lines
+  register: pihole_dnsmasq_current
+  changed_when: false
+  failed_when: false
+  when: pihole_dnsmasq_lines | length > 0
+
+# Wildcard resolution lives in dnsmasq `address=/domain/ip` lines rather than
+# dns.hosts (which supports only literal hostnames). external-dns never reads
+# or writes this key, so replacing it is safe.
+- name: Apply wildcard dnsmasq lines (misc.dnsmasq_lines)
+  ansible.builtin.command:
+    argv:
+      - pihole-FTL
+      - --config
+      - misc.dnsmasq_lines
+      - "{{ pihole_dnsmasq_lines | to_json }}"
+  when:
+    - pihole_dnsmasq_lines | length > 0
+    - >-
+      pihole_dnsmasq_lines
+      | select('in', pihole_dnsmasq_current.stdout | default(''))
+      | list | length
+      < pihole_dnsmasq_lines | length
   changed_when: true
   notify: Restart pihole-FTL
 

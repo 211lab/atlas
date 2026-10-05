@@ -35,6 +35,35 @@ pihole_webpassword: ""
 
 # Static local DNS records cooked into the install. Dynamic cluster service
 # records are handled by the in-cluster automation (see docs/pihole-dns.md).
+# These are merged into dns.hosts (never replacing what external-dns owns).
 pihole_local_records:
   - { ip: "{{ ansible_host }}", names: ["pihole.atlas.lan", "dns.atlas.lan"] }
   - { ip: "10.0.0.1", names: ["router.lan", "gw.lan"] }
+  # Proxmox hosts
+  - { ip: "10.0.0.101", names: ["turing.atlas.lan"] }
+  - { ip: "10.0.0.102", names: ["hopper.atlas.lan"] }
+  - { ip: "10.0.0.103", names: ["lovelace.atlas.lan"] }
+  - { ip: "10.0.0.104", names: ["babbage.atlas.lan"] }
+  - { ip: "10.0.0.105", names: ["memex.atlas.lan"] }
+  - { ip: "10.0.0.106", names: ["minsky.atlas.lan"] }
+  # Kubernetes API VIP (kube-vip)
+  - { ip: "10.0.0.108", names: ["api.atlas.lan"] }
+  # Non-k8s services
+  - { ip: "10.0.10.24", names: ["homeos.atlas.lan"] }
+  - { ip: "10.0.10.26", names: ["truenas.atlas.lan"] }
+  - { ip: "10.0.10.155", names: ["agent.atlas.lan"] }
+
+# Wildcard: any *.atlas.lan name without an explicit record resolves to the
+# Traefik ingress nodes via dnsmasq `address=/atlas.lan/<ip>`. Explicit records
+# (the dns.hosts entries above and external-dns-managed ones) take precedence,
+# so this is "any new service is discoverable" without per-service DNS config.
+pihole_wildcard_domain: atlas.lan
+pihole_wildcard_targets:
+  - 10.0.0.110
+  - 10.0.0.111
+  - 10.0.0.112
+  - 10.0.0.113
+pihole_dnsmasq_lines: >-
+  {{ pihole_wildcard_targets
+     | map('regex_replace', '^(.*)$', 'address=/' ~ pihole_wildcard_domain ~ '/\1')
+     | list }}

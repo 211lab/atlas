@@ -23,6 +23,10 @@ The whole platform (compute, storage, networking, control, delivery) is mapped i
 
 An opencode agent skill that onboards an application end to end (add the `atlas` git remote, build, tag, deploy) lives at [`.opencode/skills/atlas-deploy-app`](.opencode/skills/atlas-deploy-app/SKILL.md).
 
+DNS — the Pi-hole resolver on the network (wildcard `*.atlas.lan` plus static
+records for non-Kubernetes hosts) and ExternalDNS auto-registration of Ingress
+hostnames — is documented in [DNS in the Atlas lab](docs/atlas-dns.md).
+
 ## Process
 
 Start with each node fresh with the Proxmox ISO.
@@ -107,6 +111,7 @@ sealing private key is never committed. Internal `10.0.0.0/8` addresses and
 - [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
 - [C4 architecture](docs/c4-architecture.md) — Context, Container, Component and Deployment diagrams for compute, storage, networking, control, and delivery
 - [Dedicated Pi-hole DNS](docs/pihole-dns.md) — Ansible provisioning of a dedicated Pi-hole plus automatic Ingress-to-DNS registration (ExternalDNS / dnsweaver)
+- [DNS in the Atlas lab](docs/atlas-dns.md) — the Pi-hole resolver on the network (wildcard + static records) and ExternalDNS auto-discovery of `atlas.lan` hostnames
 - [Proxmox Pi-hole LXC](ansible/docs/proxmox-pihole-lxc.md) — create and tune the Pi-hole container on `memex`
 - [Pi-hole DNS runbook](docs/pihole-runbook.md) — step-by-step: provision, seal the API password, wire the cluster, deploy ExternalDNS, verify, roll back
 - [GitOps platform](docs/gitops-platform.md) — Gitea forge, container registry, Actions CI, Argo CD app-of-apps, image promotion, secrets, and storage

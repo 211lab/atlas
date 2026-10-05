@@ -62,6 +62,19 @@ Override any of them per run with `-e pihole_ftl_settings=<list>`. The dominant
 memory consumer is the gravity/blocklist domain set — keep the blocklists small
 for the lowest footprint.
 
+## DNS records
+
+The role also configures what Pi-hole answers (see
+[DNS in the Atlas lab](../docs/atlas-dns.md)):
+
+- **Wildcard** — `address=/atlas.lan/<ip>` dnsmasq lines
+  (`pihole_dnsmasq_lines` / `pihole_wildcard_targets`) send any unregistered
+  `*.atlas.lan` name to the Traefik ingress nodes `10.0.0.110-113`.
+- **Static records** — `pihole_local_records` writes literal `dns.hosts` entries
+  for the Pi-hole itself, the router, the Proxmox nodes (`10.0.0.101-106`), the
+  API VIP (`10.0.0.108`), and the non-k8s services (`10.0.10.24/26/155`). They
+  are **merged** into `dns.hosts`, never replacing ExternalDNS-owned entries.
+
 Adjust the container cap later without recreating:
 
 ```sh
