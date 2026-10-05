@@ -151,8 +151,11 @@ kubectl -n argocd annotate application external-dns argocd.argoproj.io/refresh=h
 1. **Router / DHCP:** advertise `10.0.0.10` as the primary DNS server (public
    resolver only as fallback); reserve the Pi-hole's IP.
 2. **Pi-hole upstreams:** keep public resolvers so non-lab names resolve.
-3. **Tailnet (per ADR 0001):** make Pi-hole a Tailscale agent and set its tailnet
-   IP as a global nameserver with "Override local DNS".
+3. **Tailnet:** `memex` already advertises `10.0.0.0/8` into the tailnet, so
+   Pi-hole is reachable at `10.0.0.10`. Add it in the Tailscale admin console
+   (**DNS → Nameservers**, split DNS for `atlas.lan`, or a global nameserver with
+   "Override local DNS"). See
+   [DNS in the Atlas lab → Tailnet access](atlas-dns.md#part-3--tailnet-access).
 
 ## Phase 6 — Verify end to end
 

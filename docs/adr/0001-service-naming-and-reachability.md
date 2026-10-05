@@ -119,14 +119,11 @@ The naming/reachability pieces are **live** (see
 
 ## Follow-up items (tracked; not blocking acceptance)
 
-1. **How is the cluster ingress reachable over the tailnet?** Pi-hole can answer
-   `*.atlas.lan`, but the A record points at Traefik node IPs (`10.0.0.110-113`)
-   that are only on the lab LAN. Options:
-   - run the **Tailscale Kubernetes operator / sidecar** so services get tailnet
-     IPs directly;
-   - run a **subnet router** advertising the lab LAN (or just the ingress
-     subnet) into the tailnet;
-   - keep Pi-hole records pointing at a **tailnet-reachable reverse proxy**.
+1. **How is the cluster ingress reachable over the tailnet?** *Resolved:*
+   `memex` advertises `10.0.0.0/8` as a subnet route, so tailnet clients reach
+   both Pi-hole (`10.0.0.10`) and the Traefik ingress nodes (`10.0.0.110-113`).
+   `atlas.lan` is published to the tailnet via Tailscale split DNS (see
+   [DNS in the Atlas lab](../atlas-dns.md#part-3--tailnet-access)).
 2. **Naming surface:** flat `svc.atlas.lan`, or per-service wildcards
    (`*.svc.atlas.lan`)? How does this interact with ExternalDNS `domainFilters`?
 3. **Certificate strategy** for `*.atlas.lan` (private CA choice, distribution of

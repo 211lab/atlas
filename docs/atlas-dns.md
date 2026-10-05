@@ -153,6 +153,56 @@ records are safe from pruning.
   `gitea-ssh-lb` are not annotated; the wildcard resolves their names to
   Traefik, but L7 routing needs an Ingress or IngressRoute.)
 
+## Part 3 — Tailnet access
+
+The tailnet already reaches the lab: **`memex` advertises `10.0.0.0/8` as an
+approved subnet route** (its own tailnet address). Any tailnet device with
+`--accept-routes` can therefore reach Pi-hole (`10.0.0.10:53`) and the Traefik
+ingress nodes (`10.0.0.110-113`). **No Tailscale install is needed inside the
+container.**
+
+To make tailnet clients *use* Pi-hole, set it in the Tailscale admin console
+(`login.tailscale.com` → **DNS**). Recommended — **split DNS**, so only
+`atlas.lan` goes to Pi-hole:
+
+1. **DNS → Nameservers → Add nameserver → Custom** → `10.0.0.10`.
+2. Enable **Restrict to search domain** (split DNS) and enter `atlas.lan`.
+3. (Optional) **DNS → Search domains** → add `atlas.lan` so `demo` resolves too.
+4. Keep **MagicDNS** on.
+
+If you instead want *all* tailnet DNS through Pi-hole, add `10.0.0.10` as a
+global nameserver and enable **Override local DNS**. Pi-hole forwards non-lab
+names upstream, so this is safe.
+
+On each client, accept routes and DNS:
+
+```sh
+tailscale set --accept-routes --accept-dns=true
+```
+
+Verify from a tailnet device that is **not** on the lab LAN:
+
+```sh
+dig +short @10.0.0.10 demo.atlas.lan     # 10.0.0.110
+dig +short demo.atlas.lan                # via Tailscale DNS
+curl -ksS -o /dev/null -w '%{http_code}\n' https://demo.atlas.lan/   # 200
+```
+
+Automating it (optional): the same settings can be pushed with a Tailscale API
+key (`POST /api/v2/tailnet/{tailnet}/dns/nameservers` and
+`.../dns/split-dns`); use the tailnet name shown in your admin console.
+
+Notes:
+
+- `*.atlas.lan` answers point at `10.0.0.110-113`; they are reachable because of
+  the `10.0.0.0/8` subnet route. If `memex` stops advertising it, tailnet clients
+  lose both DNS and ingress reachability.
+- `*.atlas.lan` certificates come from the internal `atlas-ca`; tailnet clients
+  must trust it (or use `-k`).
+- Alternative: run Tailscale inside the Pi-hole container to give it its own
+  `100.x` address. Not required here, and it needs `/dev/net/tun` passthrough in
+  the unprivileged LXC.
+
 ## Verify
 
 ```sh
