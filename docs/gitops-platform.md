@@ -54,7 +54,8 @@ need for a separate `argocd-image-updater` deployment.
   multi-source (`$values` ref to this repo) so chart versions stay pinned and
   values remain reviewable.
 - **Secrets live in git as SealedSecrets** (encrypted) and are decrypted in
-  cluster by the controller.
+  cluster by the controller. See [Sealing secrets](sealing-secrets.md) for the
+  cluster-admin workflow (seal, re-seal, scopes, key management).
 
 ## Repository layout
 
