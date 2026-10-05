@@ -92,9 +92,14 @@
 
 # Pi-hole v6 stores custom records in `dns.hosts` (pihole.toml) and regenerates
 # /etc/pihole/hosts/custom.list from it, so we configure the source of truth.
-- name: Apply static local DNS records (v6 dns.hosts)
+# Merge (never replace) so we do not clobber records external-dns owns.
+- name: Apply static local DNS records (v6 dns.hosts, merged)
   ansible.builtin.command:
-    cmd: "pihole-FTL --config dns.hosts {{ pihole_dns_hosts_entries | to_json }}"
+    cmd: >-
+      pihole-FTL --config dns.hosts
+      {{ (((pihole_dns_hosts_current.stdout | default('[]') | trim)[1:-1]).split(',')
+          | map('trim') | select('!=', '') | list
+          + pihole_dns_hosts_entries) | unique | to_json }}
   when:
     - pihole_local_records | length > 0
     - >-

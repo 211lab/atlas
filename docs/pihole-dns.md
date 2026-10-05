@@ -139,9 +139,11 @@ Pi-hole webhook (ghcr.io/tarantini-io/external-dns-pihole-webhook)
 Pi-hole local DNS: app.atlas.lan -> 10.0.0.110..113
 ```
 
-Records are created on deploy and removed when the Ingress is deleted
-(`policy: sync`). `domainFilters: [atlas.lan]` confines it to the lab domain so
-it never touches other Pi-hole records.
+Records are created/updated on deploy. The tarantini webhook (v1.0.0) supports
+only A/AAAA/CNAME and cannot store external-dns TXT ownership records, so the
+deployment uses `registry: noop` + `policy: upsert-only`: no TXT records are
+written and no records are pruned. `domainFilters: [atlas.lan]` confines it to
+the lab domain so it never touches other Pi-hole records.
 
 ### 2.2 Deploy it (GitOps)
 
@@ -223,8 +225,9 @@ time — they will fight over records.
 
 - The Pi-hole app password is a secret: seal it, never commit plaintext.
 - Restrict Pi-hole's admin UI to the lab network; do not expose it publicly.
-- `policy: sync` means ExternalDNS prunes records it owns. Keep
-  `domainFilters` to `atlas.lan` so it cannot delete unrelated records.
+- `policy: upsert-only` (paired with `registry: noop`) means ExternalDNS never
+  prunes records. Deleting an Ingress leaves its A record behind; remove it
+  manually or switch to a TXT-capable provider/registry.
 - The placeholder `gitops/sealed/pihole-api.yaml` **must** be re-sealed before
   deploy; the committed value will not authenticate.
 

@@ -119,7 +119,8 @@ ExternalDNS runs in-cluster and calls the Pi-hole API. Pick one:
 `gitops/apps/external-dns.yaml` and `helm/values/external-dns.yaml` already
 declare it (chart `kubernetes-sigs/external-dns` `1.23.0`, provider `webhook`
 via `ghcr.io/tarantini-io/external-dns-pihole-webhook:v1.0.0`,
-`domainFilters: [atlas.lan]`, `policy: sync`, `sources: [ingress, service]`).
+`domainFilters: [atlas.lan]`, `policy: upsert-only`, `registry: noop`,
+`sources: [ingress, service]`).
 Commit Phases 2–3, then push to **both** remotes — Argo CD watches the forge:
 
 ```sh
@@ -178,7 +179,7 @@ endpoint returns 200.
 | `dial tcp: lookup pihole.atlas.lan` in logs | Phase 3 not applied, or CoreDNS not reloaded. Add the record or use Option B. |
 | No records created | `dig @10.0.0.10` for the host; check ExternalDNS logs for `domainFilters`/ownership; confirm `sources` include `ingress`. |
 | Records point at wrong IPs | Traefik Service status changed; re-check `kubectl -n kube-system get svc traefik`. |
-| Records deleted unexpectedly | `policy: sync` prunes records ExternalDNS owns within `domainFilters`; keep the filter to `atlas.lan`. |
+| Records deleted unexpectedly | Not possible with `policy: upsert-only`; ExternalDNS never prunes. Static records are also safe. |
 | In-cluster names fail | CoreDNS `coredns-custom` (Phase 3) is separate from the Pi-hole; verify both. |
 | WSL `*.atlas.lan` unresolved | Add entries to `/etc/hosts` (see below) or point the workstation at Pi-hole. |
 
@@ -196,15 +197,15 @@ in `/etc/wsl.conf` (then `wsl --shutdown`) to persist manual entries.
 
 - Stop the automation: delete `gitops/apps/external-dns.yaml`, commit, and push
   to the forge. Argo prunes the ExternalDNS Application.
-- Delete leftovers in Pi-hole (Settings → Local DNS Records) and any `k8s.*`
-  TXT records, since pruning the app does not remove records it created.
+- Delete leftovers in Pi-hole (Settings → Local DNS Records) manually, since
+  `upsert-only` does not prune records it created.
 - Re-point router/DHCP DNS away from the Pi-hole if decommissioning the host.
 
 ## Security
 
 - The Pi-hole app password is a secret: seal it; never commit plaintext.
 - Restrict the Pi-hole admin UI to the lab network; do not expose it publicly.
-- Keep `domainFilters: [atlas.lan]` so `policy: sync` cannot delete unrelated
+- Keep `domainFilters: [atlas.lan]` so ExternalDNS cannot touch unrelated
   records.
 - The webhook provider is third-party; its image is pinned to `v1.0.0` — review
   before bumping.
