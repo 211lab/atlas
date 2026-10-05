@@ -1,0 +1,27 @@
+image:
+  repository: registry.atlas.lan/atlas-admin/dave-study
+  # Tag is owned by CI; the release workflow rewrites this line on promote.
+  tag: v0.1.0
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: gitea-registry
+
+replicaCount: 2
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: traefik
+  host: dave-study.atlas.lan
+  annotations:
+    cert-manager.io/cluster-issuer: atlas-ca
+  tlsSecretName: dave-study-tls
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 16Mi
+  limits:
+    memory: 64Mi

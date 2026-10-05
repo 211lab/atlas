@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gitea-registry
+  namespace: dave-study
+spec:
+  encryptedData:
+    .dockerconfigjson: AgAznLSJryiCi6c1K4lqvI4MTLEfEfVJlDzmAYAf3wTaE+DYjghvdc36ETFug2anypT/IdmzvEqaAizgN71V5yxd2Tx30ApEDhU0huq/TpiqxR56jGtofUSLnipFRTf6JAiqjuYeQ67yLZt03PndR8XplYwTkzJHpp3nv0fN/34Me7lE3sQhZNPIQdTrhAbwp9VhFRGM1C/+1F4cV0/z7zJIDQ0owroqpBgti5aydL0Mb5nXDT0mKlMK0ctlufKHsd4oJIodKsFXXBb37Z4O1CIByhpyNMAn729knsefhhmmO3qXpbrNNjDbK1j0Cj6+LWTTiCXYqNXgVuwxUiDQzHGzqUCuU1ZAHX2EXEnz3RRRcZhYQ2P2k8vCuBf5ynku3P+CeqM5GAdpse9i4SIkq0DQRoKDqEFzmqkcC/V7TznlDi7qlLf5C2l0k/ABchzyqVxKLCYHef71Q5iQjGv96/pyJ4J9xF/HrcS6pbFrJqSuiWm9X7oRRYtc+Lrn9XMwfjfu2lyYmirUt9vI9bAhmg84DyfD8bWSY8uB7IxbKQmiUDJUl6GxMYqlC/CUI+/R9xe2mMB6xIbzWhUhXDxETvxLZ89AoB27wvnJnPs+6VpPNDoZrEgcbHqO4FBEyCehNkjYl4oekqCfjDl65hYuiSURfsFB+nQIZLRot7tCdBlcTY/IU+gSjv3uuifo+UuTzOBAgO68OeBYVocmFbpR/mD+cWgJk3OyEnilQDhVttIOIzpbT4wGOvGboQENuScmOhu+gwDE+A0qC8z5nfVLyCrTs9Nyu8GrRQWUp2/R5EkNRQ2oYa36eD8CENAcOsIoAwcjKyF9j1gng+CWyzTWdzk7YMumrAA68eLxoZ5ENY5XsVlmV661ggF10ZyJw8mW5CTZNQ==
+  template:
+    metadata:
+      name: gitea-registry
+      namespace: dave-study
+    type: kubernetes.io/dockerconfigjson

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: dave-study
+description: Dave Mainville character study dossier — MkDocs Material static site served by busybox httpd
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
