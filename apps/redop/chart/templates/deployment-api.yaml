@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/component: api
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    # The previous chart's Deployment used a different immutable selector
+    # (`app: redop-api`). Replace rather than patch so Argo CD can adopt it.
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:

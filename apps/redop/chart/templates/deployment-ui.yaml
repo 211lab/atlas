@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/component: ui
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    # The previous chart's Deployment used a different immutable selector
+    # (`app: redop-ui`). Replace rather than patch so Argo CD can adopt it.
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
   replicas: {{ .Values.ui.replicas }}
   selector:
