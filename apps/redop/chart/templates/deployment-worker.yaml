@@ -1,0 +1,65 @@
+{{- if .Values.worker.enabled }}
+{{- /*
+  Background worker. Disabled by default: no RED worker entrypoint exists yet
+  (the workflow resume use case has no composition consumer), so enabling it
+  would crashloop and break the Argo CD health condition 9 requires. When the
+  entrypoint lands, set worker.enabled=true and worker.command to its module.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "redop.fullname" . }}-worker
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "redop.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "redop.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: {{ include "redop.fullname" . }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: worker
+          image: {{ include "redop.workerImage" . }}
+          imagePullPolicy: IfNotPresent
+          command:
+            {{- toYaml .Values.worker.command | nindent 12 }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretName }}
+                  key: {{ .Values.postgres.databaseUrlKey }}
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: OPENROUTER_API_KEY
+            - name: BACKEND_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: BACKEND_SHARED_SECRET
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: AUTH_SECRET
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+{{- end }}

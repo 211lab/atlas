@@ -1,0 +1,64 @@
+{{- if .Values.migration.enabled }}
+{{- /*
+  Migration Job (Q48; SPEC.md sections 6, 10 and 13 condition 9; ADR 0003,
+  ADR 0010). Runs RED's programmatic migration runner
+  (`python -m redops.shared.persistence.migrate`) against the shared PostgreSQL
+  before the API serves. The runner resolves the migration directory relative to
+  its own module, so it needs no `alembic.ini` in the image and works from any
+  working directory; the bare `alembic upgrade head` command would fail because
+  the API image does not ship `alembic.ini`.
+
+  Ordering is enforced two ways:
+    * Helm pre-install/pre-upgrade hook with a negative weight, so a plain
+      `helm install`/`upgrade` runs it before the Deployments.
+    * Argo CD PreSync hook at sync-wave -1, so Argo applies and waits for the
+      Job to become Healthy before it applies the API at sync-wave 0.
+  The API Deployment additionally waits for this Job's completion in an
+  initContainer, so the ordering holds even if a controller ignores hooks.
+
+  `hook-delete-policy: before-hook-creation` keeps the completed Job around so
+  the API initContainer can observe its success; it is replaced on the next
+  deploy. The migration is idempotent (ADR 0010).
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "redop.migrationJobName" . }}
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "redop.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "redop.fullname" . }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ include "redop.apiImage" . }}
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "redops.shared.persistence.migrate"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretName }}
+                  key: {{ .Values.postgres.databaseUrlKey }}
+{{- end }}

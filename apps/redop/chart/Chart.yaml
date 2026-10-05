@@ -1,6 +1,9 @@
 apiVersion: v2
 name: redop
-description: RED Operations Platform hosting OpenExecutive (FastAPI API + Next.js UI)
+description: >-
+  RED Operations Platform on the Atlas k3s cluster: the RED API, the thin
+  Next.js UI, an optional worker, and the migration Job that must complete
+  before the API serves (SPEC.md sections 6, 10 and 13 condition 9).
 type: application
 version: 0.1.0
-appVersion: "0.4.6"
+appVersion: "0.1.0"

@@ -1,20 +1,32 @@
+{{- if .Values.postgres.enabled }}
+{{- /*
+  In-cluster PostgreSQL (owner decision 2026-10-04; SPEC.md sections 6 and 10).
+
+  The RED chart adopts the existing `redop-postgres` Deployment, Service and
+  `redop-postgres-data` PVC rather than provisioning a new database. It must
+  declare them: the Argo CD Application has `prune: true`, so a resource the
+  previous chart created but the RED chart omits would be deleted on sync,
+  taking the database down. Declaring the same names and specs is idempotent and
+  leaves the bound PVC untouched.
+*/}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redop-postgres
+  name: {{ .Values.postgres.name }}
   labels:
-    app: redop-postgres
+    {{- include "redop.labels" . | nindent 4 }}
+    app: {{ .Values.postgres.name }}
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: redop-postgres
+      app: {{ .Values.postgres.name }}
   template:
     metadata:
       labels:
-        app: redop-postgres
+        app: {{ .Values.postgres.name }}
     spec:
       containers:
         - name: postgres
@@ -29,7 +41,7 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.database.secretName }}
+                  name: {{ .Values.postgres.secretName }}
                   key: POSTGRES_PASSWORD
           volumeMounts:
             - name: data
@@ -44,16 +56,20 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: redop-postgres-data
+            claimName: {{ .Values.postgres.persistence.claimName }}
 ---
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: Service
 metadata:
-  name: redop-postgres-data
+  name: {{ .Values.postgres.name }}
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+    app: {{ .Values.postgres.name }}
 spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: {{ .Values.postgres.persistence.storageClassName }}
-  resources:
-    requests:
-      storage: {{ .Values.postgres.persistence.size }}
+  selector:
+    app: {{ .Values.postgres.name }}
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.port }}
+      targetPort: {{ .Values.postgres.port }}
+{{- end }}

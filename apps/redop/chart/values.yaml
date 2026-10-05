@@ -1,15 +1,32 @@
-apiTag: v0.4.6-redop.2
-uiTag: v0.4.6-redop.2
+# RED Operations Platform Helm values (Q48; SPEC.md sections 6, 10 and 13
+# condition 9; owner decision 2026-10-04).
+#
+# The chart replaces the OpenExecutive shell in namespace `redop` with the RED
+# API and UI, reusing the existing `redop-postgres` database and `redop-secrets`
+# sealed secrets. It provisions no database and no object store. The migration
+# Job runs before the API serves; see templates/migration-job.yaml and the API
+# initContainer in templates/deployment-api.yaml.
+#
+# `apiTag` and `uiTag` are promoted by the Gitea build workflow
+# (`.gitea/workflows/build.yaml`) after it pushes the images to
+# registry.atlas.lan. Keep them as top-level keys: the workflow rewrites these
+# exact lines.
 
-apiImage: registry.atlas.lan/atlas-admin/redop-api
-uiImage: registry.atlas.lan/atlas-admin/redop-ui
+# Image tags promoted by CI. Empty falls back to the chart appVersion.
+apiTag: v0.1.0-redop.1
+uiTag: v0.1.0-redop.1
 
-imagePullSecrets: gitea-registry
+image:
+  registry: registry.atlas.lan
+  # The registry is private; the sealed pull secret already exists in `redop`.
+  pullSecrets:
+    - gitea-registry
 
-execEmail: exec@redop.atlas.lan
-defaultModel: openrouter/auto
-
+# The RED API (FastAPI, `redops.api.app:app`). Serves `/red/*` including the
+# `/red/health` probe the deployed-health gate checks.
 api:
+  repository: atlas-admin/redop-api
+  replicas: 1
   port: 8000
   resources:
     requests:
@@ -18,8 +35,27 @@ api:
     limits:
       cpu: "1"
       memory: 2Gi
+  # OpenExecutive shell state (SQLite episodic memory, Chroma vector store,
+  # company profile) lives on the existing `redop-data` PVC. RED's own
+  # relational state is PostgreSQL (ADR 0003).
+  dataVolume:
+    enabled: true
+    claimName: redop-data
+    mountPath: /data
+  env:
+    OPENROUTER_ENABLED: "true"
+    DEFAULT_MODEL: openrouter/auto
+    EXEC_EMAIL_ADDRESS: exec@redop.atlas.lan
+    VECTOR_STORE_PATH: /data/chroma_db
+    EPISODIC_DB_PATH: /data/episodic_memory.db
+    COMPANY_PROFILE_PATH: /data/company/profile.yaml
 
+# The thin Next.js UI. Holds no RED business logic (ADR 0007); calls the API
+# same-origin under `/red`, so `NEXT_PUBLIC_RED_API_BASE` is empty at build
+# time and no runtime env is required.
 ui:
+  repository: atlas-admin/redop-ui
+  replicas: 1
   port: 3000
   resources:
     requests:
@@ -29,15 +65,40 @@ ui:
       cpu: 500m
       memory: 768Mi
 
-persistence:
-  enabled: true
-  size: 10Gi
-  storageClassName: truenas-nfs
-  # ADR 0003: persistence is provided by cluster PVs backed by truenas shares.
-  # /data keeps OpenExecutive's internal stores (SQLite + ChromaDB); RED's
-  # relational store is the PostgreSQL container below, on its own truenas PVC.
+# The background worker. No RED worker entrypoint exists yet (the workflow
+# resume use case has no composition consumer), so it is disabled by default;
+# enabling it before the entrypoint lands would crashloop and break the Argo CD
+# health that condition 9 requires. See the plan's Q48 note.
+worker:
+  enabled: false
+  repository: atlas-admin/redop-api
+  replicas: 1
+  command: ["python", "-m", "redops.worker"]
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
 
+# The migration Job runs `alembic upgrade head` against the shared PostgreSQL
+# before the API serves. It is a Helm pre-install/pre-upgrade hook and an Argo
+# CD PreSync hook at sync-wave -1, and the API waits for its completion.
+migration:
+  enabled: true
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+
+# Reuse the existing in-cluster PostgreSQL. The chart adopts the existing
+# Deployment, Service and PVC (same names and specs) so the Argo CD Application's
+# `prune: true` does not delete the database the previous chart created. It
+# provisions no new database.
 postgres:
+  enabled: true
+  name: redop-postgres
+  secretName: redop-postgres
+  databaseUrlKey: DATABASE_URL
   image: postgres:16.4-alpine
   port: 5432
   database: redops
@@ -50,18 +111,33 @@ postgres:
       cpu: 500m
       memory: 1Gi
   persistence:
+    claimName: redop-postgres-data
     size: 10Gi
     storageClassName: truenas-nfs
 
-database:
-  secretName: redop-postgres
-  urlKey: DATABASE_URL
+# The `redop-data` PVC holds OpenExecutive shell state (SQLite episodic memory,
+# Chroma vector store, company profile) and is mounted by the API. Declared so
+# Argo CD keeps it.
+persistence:
+  data:
+    enabled: true
+    claimName: redop-data
+    size: 10Gi
+    storageClassName: truenas-nfs
+
+# Reuse the existing sealed application secrets.
+secrets:
+  name: redop-secrets
 
 ingress:
   enabled: true
   className: traefik
   host: redop.atlas.lan
-  annotations:
-    cert-manager.io/cluster-issuer: atlas-ca
-    traefik.ingress.kubernetes.io/router.middlewares: redop-redop-ipallow@kubernetescrd
   tlsSecretName: redop-tls
+  clusterIssuer: atlas-ca
+  # Internal-only: the Atlas allowlist middleware restricts to the home lab.
+  ipAllowList: 10.0.0.0/8
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1

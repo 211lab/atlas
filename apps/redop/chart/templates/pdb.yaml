@@ -1,0 +1,33 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- /*
+  One replica each, so the PDB permits a single voluntary disruption rather
+  than blocking node drains (SPEC.md section 10: PDB where replicas justify it).
+*/}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "redop.fullname" . }}-api
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "redop.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "redop.fullname" . }}-ui
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "redop.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ui
+{{- end }}

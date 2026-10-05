@@ -1,13 +1,39 @@
-{{- if .Values.persistence.enabled }}
+{{- /*
+  Persistent volume claims adopted from the previous chart (owner decision
+  2026-10-04; SPEC.md section 10). The Argo CD Application prunes resources the
+  chart no longer declares, so the RED chart must keep declaring the bound PVCs
+  it reuses: `redop-data` (OpenExecutive shell state mounted by the API) and
+  `redop-postgres-data` (the PostgreSQL data directory). Same names and specs,
+  so the bound PVCs are left untouched.
+*/}}
+{{- if .Values.persistence.data.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: redop-data
+  name: {{ .Values.persistence.data.claimName }}
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: {{ .Values.persistence.storageClassName }}
+  storageClassName: {{ .Values.persistence.data.storageClassName }}
   resources:
     requests:
-      storage: {{ .Values.persistence.size }}
+      storage: {{ .Values.persistence.data.size }}
+{{- end }}
+{{- if .Values.postgres.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.postgres.persistence.claimName }}
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.postgres.persistence.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistence.size }}
 {{- end }}

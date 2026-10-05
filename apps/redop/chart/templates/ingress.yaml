@@ -1,25 +1,52 @@
 {{- if .Values.ingress.enabled }}
+{{- /*
+  Same-origin ingress (owner decision 2026-10-04): `/red/*` routes to the RED
+  API, everything else to the UI. The UI calls the API under `/red`, so
+  `NEXT_PUBLIC_RED_API_BASE` stays empty. The Atlas allowlist middleware keeps
+  the host internal to the home lab (SPEC.md section 9).
+*/}}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "redop.fullname" . }}-ipallow
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
+spec:
+  ipAllowList:
+    sourceRange:
+      - {{ .Values.ingress.ipAllowList }}
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: redop
+  name: {{ include "redop.fullname" . }}
+  labels:
+    {{- include "redop.labels" . | nindent 4 }}
   annotations:
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ printf "%s-%s-ipallow@kubernetescrd" .Release.Namespace (include "redop.fullname" .) }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
-  tls:
-    - hosts:
-        - {{ .Values.ingress.host }}
-      secretName: {{ .Values.ingress.tlsSecretName }}
   rules:
     - host: {{ .Values.ingress.host }}
       http:
         paths:
+          - path: /red
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "redop.fullname" . }}-api
+                port:
+                  number: {{ .Values.api.port }}
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: redop-ui
+                name: {{ include "redop.fullname" . }}-ui
                 port:
                   number: {{ .Values.ui.port }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+      secretName: {{ .Values.ingress.tlsSecretName }}
 {{- end }}

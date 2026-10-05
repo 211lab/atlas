@@ -1,86 +1,119 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redop-api
+  name: {{ include "redop.fullname" . }}-api
   labels:
-    app: redop-api
+    {{- include "redop.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  replicas: 1
+  replicas: {{ .Values.api.replicas }}
   selector:
     matchLabels:
-      app: redop-api
+      {{- include "redop.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
   template:
     metadata:
       labels:
-        app: redop-api
+        {{- include "redop.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
     spec:
+      serviceAccountName: {{ include "redop.fullname" . }}
+      {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
-        - name: {{ .Values.imagePullSecrets }}
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.migration.enabled }}
+      # Migration-before-serve: block the API container until the migration Job
+      # reports success. Reads the Job status through the Kubernetes API using
+      # the pod's service account (see templates/serviceaccount.yaml).
+      initContainers:
+        - name: wait-for-migration
+          image: {{ include "redop.apiImage" . }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              ns="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+              token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+              url="https://kubernetes.default.svc/apis/batch/v1/namespaces/${ns}/jobs/{{ include "redop.migrationJobName" . }}/status"
+              i=0
+              while [ "$i" -lt 120 ]; do
+                code="$(curl -s -o /tmp/job-status -w '%{http_code}' -k \
+                  -H "Authorization: Bearer ${token}" "$url" || true)"
+                if [ "$code" = "200" ] && grep -q '"succeeded":1' /tmp/job-status; then
+                  echo "migration complete"
+                  exit 0
+                fi
+                i=$((i + 1))
+                echo "waiting for migration (${i}/120)"
+                sleep 5
+              done
+              echo "migration did not complete in time" >&2
+              exit 1
+      {{- end }}
       containers:
         - name: api
-          image: "{{ .Values.apiImage }}:{{ .Values.apiTag }}"
+          image: {{ include "redop.apiImage" . }}
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: {{ .Values.api.port }}
+            - name: http
+              containerPort: {{ .Values.api.port }}
           env:
-            - name: OPENROUTER_ENABLED
-              value: "true"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretName }}
+                  key: {{ .Values.postgres.databaseUrlKey }}
             - name: OPENROUTER_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: redop-secrets
+                  name: {{ .Values.secrets.name }}
                   key: OPENROUTER_API_KEY
             - name: BACKEND_SHARED_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: redop-secrets
+                  name: {{ .Values.secrets.name }}
                   key: BACKEND_SHARED_SECRET
             - name: AUTH_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: redop-secrets
+                  name: {{ .Values.secrets.name }}
                   key: AUTH_SECRET
-            - name: EXEC_EMAIL_ADDRESS
-              value: {{ .Values.execEmail | quote }}
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.database.secretName }}
-                  key: {{ .Values.database.urlKey }}
-            - name: DEFAULT_MODEL
-              value: {{ .Values.defaultModel | quote }}
-            - name: VECTOR_STORE_PATH
-              value: /data/chroma_db
-            - name: EPISODIC_DB_PATH
-              value: /data/episodic_memory.db
-            - name: COMPANY_PROFILE_PATH
-              value: /data/company/profile.yaml
-          volumeMounts:
-            - name: data
-              mountPath: /data
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: {{ .Values.api.port }}
-            initialDelaySeconds: 30
-            periodSeconds: 10
+            {{- range $name, $value := .Values.api.env }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
           livenessProbe:
             httpGet:
-              path: /health
-              port: {{ .Values.api.port }}
-            initialDelaySeconds: 120
+              path: /red/health
+              port: http
+            initialDelaySeconds: 60
             periodSeconds: 20
-            # The single-worker API keeps /health on the same event loop as
-            # long-running model/DB work, so a busy moment can exceed 1s. Allow
-            # more headroom (and a couple more failures) to avoid flapping.
             timeoutSeconds: 5
             failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /red/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
+          {{- if .Values.api.dataVolume.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.api.dataVolume.mountPath }}
+          {{- end }}
+      {{- if .Values.api.dataVolume.enabled }}
       volumes:
         - name: data
-          {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
-            claimName: redop-data
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
+            claimName: {{ .Values.api.dataVolume.claimName }}
+      {{- end }}

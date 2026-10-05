@@ -1,0 +1,7 @@
+RED Operations Platform deployed.
+
+  UI:  https://{{ .Values.ingress.host }}/
+  API: https://{{ .Values.ingress.host }}/red/health
+
+The migration Job ({{ include "redop.migrationJobName" . }}) runs before the API
+serves. The API waits for its completion in an initContainer.
