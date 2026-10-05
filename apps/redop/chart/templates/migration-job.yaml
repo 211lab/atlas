@@ -43,7 +43,6 @@ spec:
         app.kubernetes.io/component: migration
     spec:
       restartPolicy: Never
-      serviceAccountName: {{ include "redop.fullname" . }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
         {{- range . }}
