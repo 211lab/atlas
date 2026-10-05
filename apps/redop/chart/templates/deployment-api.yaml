@@ -49,7 +49,7 @@ spec:
               while [ "$i" -lt 120 ]; do
                 code="$(curl -s -o /tmp/job-status -w '%{http_code}' -k \
                   -H "Authorization: Bearer ${token}" "$url" || true)"
-                if [ "$code" = "200" ] && grep -q '"succeeded":1' /tmp/job-status; then
+                if [ "$code" = "200" ] && grep -Eq '"succeeded"[[:space:]]*:[[:space:]]*[1-9]' /tmp/job-status; then
                   echo "migration complete"
                   exit 0
                 fi

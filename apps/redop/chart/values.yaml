@@ -13,8 +13,8 @@
 # exact lines.
 
 # Image tags promoted by CI. Empty falls back to the chart appVersion.
-apiTag: v0.1.0-redop.1
-uiTag: v0.1.0-redop.1
+apiTag: ""
+uiTag: ""
 
 image:
   registry: registry.atlas.lan
