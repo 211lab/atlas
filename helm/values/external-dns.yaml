@@ -42,10 +42,12 @@ sources:
   - ingress
   - service
 
-policy: sync
-registry: txt
-txtOwnerId: atlas
-txtPrefix: k8s.
+# The tarantini Pi-hole webhook (v1.0.0) handles only A/AAAA/CNAME records and
+# cannot store external-dns TXT ownership records. Use the noop registry and
+# upsert-only so we never emit TXT and never prune unmanaged/static records
+# (the Pi-hole's own pihole.atlas.lan / dns.atlas.lan entries).
+policy: upsert-only
+registry: noop
 interval: 1m
 
 resources:
