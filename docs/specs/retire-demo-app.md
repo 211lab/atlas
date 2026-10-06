@@ -43,6 +43,9 @@ central `atlas-admin/atlas` GitOps repository and unrelated applications.
 5. **Given** the retirement change, **when** delivered, **then** the GitHub
    `main` branch and the central Gitea GitOps `main` branch contain the change,
    while the hosted central repository itself remains available.
+6. **Given** there are no remaining container build files in this repository,
+   **when** delivery is complete, **then** the local `gitea` Git remote is
+   removed without deleting the hosted central GitOps repository.
 
 ## Constraints and assumptions
 
@@ -56,9 +59,9 @@ central `atlas-admin/atlas` GitOps repository and unrelated applications.
 - **ASSUMPTION:** Argo CD's existing prune policy will remove resources it owns
   after the updated source is pushed to Gitea; do not delete cluster resources
   imperatively.
-- **ASSUMPTION:** The local `gitea` remote remains configured because the
-  central GitOps source is still hosted there; only the retired app's build
-  artifacts/repository references are in scope.
+- The central GitOps repository remains hosted in Gitea because Argo CD reads
+  it there, but the local `gitea` remote is removed after the required push;
+  this repository no longer contains container build files.
 
 ## Plan and rollback
 
@@ -72,11 +75,15 @@ central `atlas-admin/atlas` GitOps repository and unrelated applications.
    documentation consistency.
 5. Push the retirement change to GitHub `main` and Gitea `main` so the declared
    source and Argo's configured source agree; confirm GitOps health after sync.
-6. Roll back by recreating the demo app repo from its backup and restoring the
+6. Remove the local `gitea` remote, retaining the hosted central repository.
+7. Roll back by restoring the local remote and recreating the demo app repo
+   from its backup, then restoring the
    removed Application, secret declaration, DNS alias, source/chart/workflow,
    and docs, then push to both remotes.
 
-## Open questions
+## Verification record
 
-- None blocking. Live Argo status is not yet verified; post-push reconciliation
-  is part of the delivery verification.
+- **PASS:** Argo `root` and `atlas-config` are `Synced/Healthy` at the retirement
+  revision; the `demo-app` Application and its workload resources are absent.
+- **PASS:** CoreDNS no longer declares `demo.atlas.lan`.
+- **PASS:** Gitea API returns `404` for `atlas-admin/demo-app` after deletion.
