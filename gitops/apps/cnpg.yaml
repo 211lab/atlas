@@ -1,0 +1,35 @@
+# CloudNativePG operator. Required by the Immich PostgreSQL Cluster CR
+# (apps/immich/manifests/postgres-cluster.yaml), which Immich v3 needs for the
+# vchord extension. Sync-wave -1 so the CRDs exist before the Immich app syncs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnative-pg
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  sources:
+    - repoURL: https://cloudnative-pg.github.io/charts
+      chart: cloudnative-pg
+      targetRevision: 0.29.1
+      helm:
+        releaseName: cloudnative-pg
+        valueFiles:
+          - $values/helm/values/cnpg.yaml
+    - repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+      targetRevision: main
+      ref: values
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,17 @@
+# Immich library (original photos/videos + generated thumbnails/transcodes).
+# Shared by the server and machine-learning pods -> ReadWriteMany on TrueNAS NFS.
+# Referenced by helm/values/immich.yaml via immich.persistence.library.existingClaim.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library
+  namespace: immich
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: truenas-nfs
+  resources:
+    requests:
+      storage: 50Gi
