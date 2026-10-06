@@ -1,0 +1,25 @@
+image:
+  repository: ghcr.io/home-assistant/home-assistant
+  tag: 2026.9.4
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  port: 8123
+
+ingress:
+  host: home-assistant.atlas.lan
+  tlsSecretName: home-assistant-tls
+
+persistence:
+  storageClassName: truenas-nfs
+  size: 10Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
