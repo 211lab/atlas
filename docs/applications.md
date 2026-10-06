@@ -56,7 +56,7 @@ PostgreSQL, defined entirely in one chart.
   and ports in `apps/redop/chart/values.yaml`.
 - **Known:** `redop-api` liveness probe intermittently times out.
 
-## immich — photo/video library (pending `feat/immich`)
+## immich — photo/video library
 
 Third-party app using the maintained upstream chart plus a CloudNativePG-managed
 PostgreSQL, because Immich v3 requires the `vchord` extension.
@@ -67,12 +67,16 @@ PostgreSQL, because Immich v3 requires the `vchord` extension.
 - **Chart:** `ghcr.io/immich-app/immich-charts/immich` `0.13.2` (Immich v3.2.0)
   with pinned values `helm/values/immich.yaml` and the `$values` ref.
 - **Data:** `apps/immich/manifests/` — 50Gi `truenas-nfs` ReadWriteMany library
-  PVC, the `immich-database` CNPG `Cluster` (PostgreSQL 18 + `vchord-scratch`),
-  and the `Database` CR installing `vector`/`vchord`/`earthdistance`/`cube`.
+  PVC, the `immich-database` CNPG `Cluster` (PostgreSQL 18 on `local-path` +
+  `vchord-scratch`), and the `Database` CR installing
+  `vector`/`vchord`/`earthdistance`/`cube`.
   DB credentials come from the operator-generated `immich-database-app` Secret.
+- **Backups:** daily PostgreSQL dumps to Restic snapshots on a separate 100Gi
+  `truenas-nfs` PVC; keep 14 daily snapshots. The Restic key is sealed.
 - **Namespace:** `immich`; **Ingress:** `immich.atlas.lan` (TLS `atlas-ca`);
   valkey (Redis) and a 10Gi ML-model cache PVC run in-chart.
-- **Not yet merged/pushed to the forge** — reconcile only after the branch lands.
+- **Merged locally from upstream, not yet pushed to the forge** — reconcile after
+  the branch is pushed; validate backup capacity and practice recovery first.
 
 ## Adding an app
 

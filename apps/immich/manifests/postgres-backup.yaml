@@ -1,0 +1,81 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-postgres-backup
+  namespace: immich
+spec:
+  schedule: "0 2 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: OnFailure
+          initContainers:
+            - name: dump
+              image: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  export PGPASSWORD="$DB_PASSWORD"
+                  pg_dump --no-owner -h "$DB_HOSTNAME" -U "$DB_USERNAME" "$DB_DATABASE_NAME" > /dump/immich.sql
+              env:
+                - name: DB_HOSTNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-database-app
+                      key: host
+                - name: DB_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-database-app
+                      key: user
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-database-app
+                      key: password
+                - name: DB_DATABASE_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-database-app
+                      key: dbname
+              volumeMounts:
+                - name: dump
+                  mountPath: /dump
+          containers:
+            - name: restic
+              image: restic/restic:0.18.1
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  restic snapshots >/dev/null 2>&1 || restic init
+                  restic backup /dump/immich.sql --host immich-postgres --tag immich-postgres
+                  restic forget --tag immich-postgres --keep-daily 14 --prune
+              env:
+                - name: RESTIC_REPOSITORY
+                  value: /backup/restic
+                - name: RESTIC_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-secrets
+                      key: RESTIC_PASSWORD
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                - name: dump
+                  mountPath: /dump
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: immich-backup
+            - name: dump
+              emptyDir: {}

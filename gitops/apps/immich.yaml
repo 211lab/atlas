@@ -1,7 +1,8 @@
 # Immich (photo/video library). Three sources:
 #   1. the upstream OCI chart (pinned version) with atlas values from git;
 #   2. the atlas repo as the `$values` reference for the value file;
-#   3. the atlas repo's raw manifests: library PVC + CloudNativePG Cluster/Database.
+#   3. the atlas repo's raw manifests: library/backup PVCs, CloudNativePG
+#      Cluster/Database, SealedSecret, and PostgreSQL backup CronJob.
 #
 # Depends on the cloudnative-pg Application (sync-wave -1) for the CRDs.
 apiVersion: argoproj.io/v1alpha1

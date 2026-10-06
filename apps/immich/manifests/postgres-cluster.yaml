@@ -8,6 +8,8 @@
 #
 # The operator auto-generates the `<cluster>-app` secret consumed by Immich
 # (host, user, password, dbname), so no password is committed here.
+# Immich's PostgreSQL data uses local-path rather than NFS; node loss recovery
+# uses the separately managed logical-dump snapshots on the NFS backup PVC.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -15,11 +17,12 @@ metadata:
   namespace: immich
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:18-standard-trixie
   storage:
-    storageClass: truenas-nfs
+    storageClass: local-path
     size: 10Gi
   resources:
     requests:
