@@ -54,7 +54,7 @@ Baked into the `pihole` role and applied idempotently via `pihole-FTL --config`:
 | `dns.cache.size` | 2000 | smaller DNS cache |
 | `database.maxDBdays` | 7 | short query-history retention |
 | `database.DBinterval` | 300 | fewer DB writes |
-| `dns.queryLogging` | false | no per-query logging |
+| `dns.queryLogging` | true | per-query logging enabled |
 | `misc.privacylevel` | 2 | aggregate client detail |
 | `webserver.threads` | 10 | fewer web threads |
 
@@ -70,6 +70,8 @@ The role also configures what Pi-hole answers (see
 - **Wildcard** — `address=/atlas.lan/<ip>` dnsmasq lines
   (`pihole_dnsmasq_lines` / `pihole_wildcard_targets`) send any unregistered
   `*.atlas.lan` name to the Traefik ingress nodes `10.0.0.110-113`.
+- **Private reverse DNS** — `local=/10.in-addr.arpa/` in `misc.dnsmasq_lines`
+  marks reverse lookups for the complete `10.0.0.0/8` range local to dnsmasq.
 - **Static records** — `pihole_local_records` writes literal `dns.hosts` entries
   for the Pi-hole itself, the router, the Proxmox nodes (`10.0.0.101-106`), the
   API VIP (`10.0.0.108`), and the non-k8s services (`10.0.10.24/26/155`). They
