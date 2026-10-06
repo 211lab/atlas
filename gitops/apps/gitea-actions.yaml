@@ -28,3 +28,14 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  # The StatefulSet was originally helm-installed, so its API-defaulted fields
+  # (revisionHistoryLimit, podManagementPolicy, updateStrategy, retention policy)
+  # are owned by the stale `helm` managedFields manager and reappear as drift
+  # even though the desired manifest never sets them. Ignore fields owned by that
+  # manager so the Application reports Synced; the chart values remain the source
+  # of truth for everything Argo applies.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      managedFieldsManagers:
+        - helm
