@@ -78,13 +78,16 @@ backup use separate TrueNAS NFS PVCs.
 
 1. Remove the legacy NFS `Cluster` and `Database` manifests from the active
    Immich source; retain the local-path Cluster, local Database, and backups.
-2. Push the desired state to both remotes.
-3. Terminate the stale Argo sync operation that is pinned to the old revision
-   and verify the Immich Application now targets the current Git revision.
-4. Delete namespace `immich` as explicitly authorized; wait for it and its
+2. Temporarily disable automated sync on the Immich child Application through
+   GitOps, push to both remotes, and verify the app-of-apps has applied that
+   manual-sync policy.
+3. Terminate the stale Argo sync operation pinned to the old revision and
+   verify the child Application now targets the current Git revision.
+4. Delete namespace `immich` as explicitly authorized; wait for it and all
    pre-reset PVC/PV backing volumes to be reclaimed.
-5. Let Argo CD recreate the namespace and all resources from Git; do not run
-   `kubectl apply` for application resources.
+5. Re-enable automated sync in GitOps and push to both remotes. Let Argo CD
+   recreate the namespace and all resources from the fresh desired state; do
+   not run `kubectl apply` for application resources.
 6. Verify local-path database readiness, Immich health, new PVC identities, and
    one successful Restic snapshot.
 

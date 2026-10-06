@@ -26,8 +26,13 @@ for the new Cluster to be ready before relying on that Secret.
 
 The user explicitly approved a one-time reset of namespace `immich` for this
 rollout, including its library data. After the failed NFS Cluster and Database
-are removed from the active GitOps source and the desired revision is verified,
-delete the entire `immich` namespace and allow Argo CD to recreate it from Git.
+are removed from the active GitOps source, temporarily disable automated sync on
+the Immich child Application through GitOps and wait for the root app to apply
+that policy. Terminate the stale sync operation pinned to the old revision and
+verify the application targets the current Git revision. Then delete the entire
+`immich` namespace and allow Argo CD to recreate it from Git after automated
+sync is re-enabled.
+
 This removes every resource in the namespace, including the failed database
 Cluster/Database, initdb Job and pods, secrets, and all PVCs/PVs, including the
 50Gi library PVC/PV. The library PV's `Delete` reclaim policy means its contents
