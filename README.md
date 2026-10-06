@@ -120,7 +120,7 @@ sealing private key is never committed. Internal `10.0.0.0/8` addresses and
 - [Proxmox Pi-hole LXC](ansible/docs/proxmox-pihole-lxc.md) — create and tune the Pi-hole container on `memex`
 - [Pi-hole DNS runbook](docs/pihole-runbook.md) — step-by-step: provision, seal the API password, wire the cluster, deploy ExternalDNS, verify, roll back
 - [GitOps platform](docs/gitops-platform.md) — Gitea forge, container registry, Actions CI, Argo CD app-of-apps, image promotion, secrets, and storage
-- [Home Assistant on Atlas](docs/home-assistant.md) — planned LAN-only K3s design, repository conventions, validation, rollout, and operational limits (not deployed)
+- [Home Assistant on Atlas](docs/home-assistant.md) — LAN-only K3s chart and GitOps setup, rollout/live verification, safe rollback, and operational limits
 - [Sealing secrets](docs/sealing-secrets.md) — cluster-admin runbook: seal and re-seal SealedSecrets, scopes, consuming them from charts, sealing-key backup/rotation, troubleshooting
 - [Control user bootstrap](ansible/docs/control-user.md)
 - [Proxmox Ubuntu 22.04 cloud-init VMs](ansible/docs/proxmox-cloudinit-ubuntu.md)
