@@ -43,8 +43,11 @@ are overcommitted (159% / 128%). Set conservative `requests`/`limits`.
 
 ### Namespaces and workloads
 
-`argocd`, `cert-manager`, `demo`, `gitea`, `monitoring`, `redop`,
+`argocd`, `cert-manager`, `gitea`, `monitoring`, `redop`,
 `sealed-secrets`, `kube-system` (plus empty orphan `external-dns`).
+
+The `demo` namespace is legacy; its workload is no longer declared in Git and
+the namespace may remain until live Argo reconciliation removes owned resources.
 
 | Namespace | What runs |
 | --- | --- |
@@ -53,7 +56,6 @@ are overcommitted (159% / 128%). Set conservative `requests`/`limits`.
 | `gitea` | Gitea `1.27.0` (chart 12.7.0) + Bitnami PostgreSQL 17 StatefulSet + act_runner StatefulSet (`gitea-actions` chart 0.1.2) |
 | `sealed-secrets` | sealed-secrets controller `0.40.0` |
 | `monitoring` | kube-prometheus-stack `88.3.0` (operator v0.93.0, Grafana 13.1.3, Prometheus StatefulSet, node-exporter, kube-state-metrics) |
-| `demo` | `demo-app` (registry.atlas.lan/atlas-admin/demo-app) |
 | `redop` | `redop-api`/`redop-ui`/`redop-postgres`, in-repo chart `apps/redop/chart` |
 | `kube-system` | traefik, coredns, metrics-server, local-path-provisioner, csi-driver-nfs `4.13.4`, kube-vip DS, `svclb-*` |
 
@@ -65,7 +67,7 @@ Third-party platform components are upstream charts pinned in
 
 `root` (path `gitops/apps`) reconciled from
 `http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git`.
-Children: `argocd`, `atlas-config`, `cert-manager`, `demo-app`, `gitea`,
+Children: `argocd`, `atlas-config`, `cert-manager`, `gitea`,
 `gitea-actions`, `redop`, `sealed-secrets`. All `Synced/Healthy` except
 **`gitea-actions` = `OutOfSync`** — the runner StatefulSet differs from the
 Helm render only in API-server-defaulted fields; a fix
@@ -84,7 +86,6 @@ yet live. `external-dns` is declared on `main` but not yet synced to the cluster
 | --- | --- | --- |
 | `git.atlas.lan`, `registry.atlas.lan` | gitea | `gitea-tls` |
 | `argocd.atlas.lan` | argocd-server | `argocd-server-tls` |
-| `demo.atlas.lan` | demo-app | `demo-app-tls` |
 | `redop.atlas.lan` | redop-ui | `redop-tls` |
 
 All ingress class `traefik`; TLS issued by the `atlas-ca` ClusterIssuer
@@ -102,7 +103,7 @@ and `gitops/sealed/pihole-api.yaml` is re-sealed from its placeholder,
 workstation `/etc/hosts` entries:
 
 ```text
-10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan redop.atlas.lan immich.atlas.lan
+10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan redop.atlas.lan immich.atlas.lan
 10.0.0.107 pihole.atlas.lan
 ```
 

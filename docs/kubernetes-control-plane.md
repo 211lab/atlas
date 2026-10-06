@@ -231,9 +231,11 @@ atlas-k3s-cp3       Ready    control-plane,etcd   48d   v1.36.3+k3s1   10.0.0.11
 atlas-k3s-worker1   Ready    worker               48d   v1.36.3+k3s1   10.0.0.113    Ubuntu 24.04.4 LTS   containerd://2.3.2-k3s2
 ~~~
 
-Expected namespaces (re-verified 2026-10-04): `default`, `kube-node-lease`,
+Namespaces verified 2026-10-04 included `default`, `kube-node-lease`,
 `kube-public`, `kube-system`, `argocd`, `cert-manager`, `gitea`, `sealed-secrets`,
-`monitoring`, `demo`, `redop`, and an empty orphan `external-dns`.
+`monitoring`, `demo`, `redop`, and an empty orphan `external-dns`. The `demo`
+namespace is legacy: its workload is no longer declared in Git and the namespace
+may remain until live Argo reconciliation removes owned resources.
 
 The active cluster endpoint should be https://10.0.0.108:6443, never 127.0.0.1, when the command runs from Titan or WSL.
 

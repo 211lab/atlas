@@ -20,7 +20,6 @@ Verified 2026-10-04.
 | Gitea Actions runner | `gitea/actions` | 0.1.2 / runner 2.0.1 | gitea | — |
 | Argo CD | `argo/argo-cd` | 10.9.6 / v3.5.3 | argocd | https://argocd.atlas.lan |
 | kube-prometheus-stack | `prometheus-community/kube-prometheus-stack` | 88.3.0 / operator v0.93.0 | monitoring | Grafana `http://<node>:3000` |
-| demo-app | in-repo `examples/demo-app/chart` | 0.1.0 | demo | https://demo.atlas.lan |
 | redop | in-repo `apps/redop/chart` | 0.1.0 / v0.4.6 | redop | https://redop.atlas.lan |
 | immich | OCI `immich-charts/immich` + CloudNativePG | 0.13.2 / v3.2.0 (pending `feat/immich`) | immich | https://immich.atlas.lan |
 
@@ -75,7 +74,6 @@ atlas/
     manifests/                  raw manifests: atlas-ca, coredns, StorageClass
     sealed/                     encrypted SealedSecrets (safe to commit)
   helm/values/                  pinned values.yaml per chart
-  examples/demo-app/            demo app: Dockerfile, index.html, chart/, .gitea CI
   docs/gitops-platform.md       this runbook
 ```
 
@@ -165,7 +163,7 @@ Enable it by adding the path to `skills.paths` in your opencode config:
    events) with the same secret as `argocd-webhook`. Gitea must be allowed to
    call in-cluster hosts (`GITEA__security__ALLOWED_HOST_LIST`, set in
    `helm/values/gitea.yaml`).
-8. **Push this repo to Gitea** and tag the demo app; Argo CD takes over from there.
+8. **Push this repo to Gitea**; Argo CD takes over from there.
 
 ## Using the platform (add a new application)
 
@@ -175,8 +173,8 @@ Enable it by adding the path to `skills.paths` in your opencode config:
 1. Create a repo in Gitea (e.g. `atlas-admin/myapp`). Add repo Actions secrets
    `REGISTRY_USER` and `REGISTRY_TOKEN` (a Gitea PAT with `write:package` and
    repo write access so CI can promote into the GitOps repo).
-2. Add a `.gitea/workflows/build.yaml` modelled on
-   `examples/demo-app/.gitea/workflows/build.yaml`: checkout over the internal
+2. Add a `.gitea/workflows/build.yaml` modelled on the generic workflow skeleton
+   in the `atlas-deploy-app` skill: checkout over the internal
    Gitea service, write `~/.docker/config.json`, `docker build`/`push` to
    `registry.atlas.lan/atlas-admin/<app>:<tag>`, then for semver tags commit the
    new tag into this repo's Helm values. Push with
@@ -256,7 +254,7 @@ node has:
 
 ```
 # /etc/hosts
-10.43.186.184 registry.atlas.lan git.atlas.lan argocd.atlas.lan demo.atlas.lan
+10.43.186.184 registry.atlas.lan git.atlas.lan argocd.atlas.lan
 
 # /etc/rancher/k3s/registries.yaml
 mirrors:
@@ -287,8 +285,8 @@ kubectl -n argocd annotate application <name> argocd.argoproj.io/refresh=hard --
 
 - **Kaniko vs docker:** the plan called for Kaniko, but the pinned `executor:debug`
   image has no `/bin/sleep`, which the Gitea act_runner uses as the job container
-  keep-alive, so the job is cancelled. The demo pipeline therefore builds with
-  the runner's dind using `docker:25-git`. A Kaniko variant can be reintroduced
+  keep-alive, so the job is cancelled. Workflows therefore build with the
+  runner's dind using `docker:25-git`. A Kaniko variant can be reintroduced
   once a compatible runner/image pair is validated.
 - **`docker login` vs config.json:** `docker login` fails against Gitea's token
   registry during credential validation; the workflow writes

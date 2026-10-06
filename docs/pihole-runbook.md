@@ -104,7 +104,7 @@ ExternalDNS runs in-cluster and calls the Pi-hole API. Pick one:
   atlas.server: |
       atlas.lan:53 {
           hosts {
-              10.43.186.184 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan
+              10.43.186.184 git.atlas.lan registry.atlas.lan argocd.atlas.lan
               10.0.0.10    pihole.atlas.lan
               fallthrough
           }
@@ -161,14 +161,14 @@ kubectl -n argocd annotate application external-dns argocd.argoproj.io/refresh=h
 
 ```sh
 # A record written from an Ingress host:
-dig +short @10.0.0.10 demo.atlas.lan
+dig +short @10.0.0.10 redop.atlas.lan
 dig +short @10.0.0.10 git.atlas.lan
 
 # From a client that uses Pi-hole as its resolver:
-dig +short demo.atlas.lan
+dig +short redop.atlas.lan
 
 # HTTPS still terminates at Traefik:
-curl -ksS -o /dev/null -w '%{http_code}\n' --resolve demo.atlas.lan:443:10.0.0.110 https://demo.atlas.lan/
+curl -ksS -o /dev/null -w '%{http_code}\n' --resolve redop.atlas.lan:443:10.0.0.110 https://redop.atlas.lan/
 ```
 
 Success = ExternalDNS `Synced/Healthy`, `dig` returns a Traefik node IP, and the
@@ -189,7 +189,7 @@ endpoint returns 200.
 Workstation fallback (`/etc/hosts`), until Pi-hole is the resolver:
 
 ```text
-10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan demo.atlas.lan redop.atlas.lan immich.atlas.lan
+10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan redop.atlas.lan immich.atlas.lan
 10.0.0.10 pihole.atlas.lan
 ```
 

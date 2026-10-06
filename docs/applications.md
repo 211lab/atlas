@@ -20,22 +20,8 @@ Argo CD; there is no registry poller. Onboarding is automated by
 
 | App | Style | Chart / values | Argo Application | Namespace | Ingress |
 | --- | --- | --- | --- | --- | --- |
-| demo-app | in-repo | `examples/demo-app/chart` | `gitops/apps/demo-app.yaml` | `demo` | `demo.atlas.lan` |
 | redop | in-repo | `apps/redop/chart` | `gitops/apps/redop.yaml` | `redop` | `redop.atlas.lan` |
 | immich | third-party + operator | `ghcr.io/immich-app/immich-charts/immich` `0.13.2` + `helm/values/immich.yaml` | `gitops/apps/immich.yaml` (pending) | `immich` | `immich.atlas.lan` (pending) |
-
-## demo-app — reference implementation
-
-The canonical worked example and the smallest GitOps app.
-
-- **Chart:** `examples/demo-app/chart` (nginx static page, Deployment + Service +
-  Ingress).
-- **Image:** `registry.atlas.lan/atlas-admin/demo-app:<tag>`.
-- **CI:** `examples/demo-app/.gitea/workflows/build.yaml` — builds with the
-  runner's dind (`docker:25-git`), writes `~/.docker/config.json` directly, and
-  promotes semver tags into `examples/demo-app/chart/values.yaml`.
-- **Secrets:** `gitops/sealed/demo-gitea-registry.yaml` (image pull).
-- **Argo:** `gitops/apps/demo-app.yaml`, path `examples/demo-app/chart`.
 
 ## redop — RED Operations Platform
 

@@ -112,7 +112,7 @@ sealing private key is never committed. Internal `10.0.0.0/8` addresses and
 
 - [Agent instructions](AGENTS.md) — how agents work in this repo: access, conventions, validation, guardrails
 - [Contributing](CONTRIBUTING.md) — branching, Conventional Commits, validation, and the change/review process
-- [Applications](docs/applications.md) — catalog of GitOps apps (demo-app, redop, immich) with charts, namespaces, ingress, storage and secrets
+- [Applications](docs/applications.md) — catalog of GitOps apps with charts, namespaces, ingress, storage and secrets
 - [Kubernetes control plane](docs/kubernetes-control-plane.md) — deployed topology, kubeconfig access, monitoring, storage status, and recovery procedures
 - [C4 architecture](docs/c4-architecture.md) — Context, Container, Component and Deployment diagrams for compute, storage, networking, control, and delivery
 - [Dedicated Pi-hole DNS](docs/pihole-dns.md) — Ansible provisioning of a dedicated Pi-hole plus automatic Ingress-to-DNS registration (ExternalDNS / dnsweaver)

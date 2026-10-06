@@ -1,9 +1,9 @@
 # AGENTS.md — working in the Atlas repo
 
 Atlas is a home-lab Kubernetes platform (Proxmox VE hosts → a 4-node HA k3s
-cluster running Gitea, Argo CD, monitoring and demo/redop apps). **This repo is
-the GitOps source of truth**: applications and platform components are declared
-here and reconciled by Argo CD. Change git, let controllers converge the cluster
+cluster running Gitea, Argo CD, monitoring and applications such as Redop).
+**This repo is the GitOps source of truth**: applications and platform components
+are declared here and reconciled by Argo CD. Change git, let controllers converge the cluster
 — do not `helm install` / `kubectl apply` platform changes by hand.
 
 Read these before making changes:
@@ -55,7 +55,6 @@ gitops/bootstrap/root-app.yaml  app-of-apps root (bootstrap once)
 gitops/manifests/            cluster-scoped raw manifests, applied by atlas-config
 gitops/sealed/               SealedSecrets (safe to commit)
 helm/values/<name>.yaml      pinned values for platform components
-examples/demo-app/           canonical worked example (CI + chart + promotion)
 docs/                        runbooks and architecture
 docs/adr/                    architecture decision records
 .opencode/skills/            opencode skills for agents
