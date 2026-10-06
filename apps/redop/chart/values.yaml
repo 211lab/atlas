@@ -13,9 +13,9 @@
 # exact lines.
 
 # Image tags promoted by CI. Empty falls back to the chart appVersion.
-apiTag: sha-3c2c482
-uiTag: sha-3c2c482
-cockpitTag: sha-3c2c482
+apiTag: sha-09956b7
+uiTag: sha-09956b7
+cockpitTag: sha-09956b7
 
 image:
   registry: registry.atlas.lan
@@ -84,10 +84,14 @@ cockpit:
       memory: 1Gi
   backendBaseUrl: http://redop-api:8000/openexecutive
 
-# The background worker. No RED worker entrypoint exists yet (the workflow
-# resume use case has no composition consumer), so it is disabled by default;
-# enabling it before the entrypoint lands would crashloop and break the Argo CD
-# health that condition 9 requires. See the plan's Q48 note.
+# The background worker (`python -m redops.worker`, W1). The entrypoint now
+# exists and composes the durable workflow resume loop, but a durable worker
+# also needs a real connector transport so a recorded external operation is
+# actually sent; the connector inventory is an open decision (SPEC.md section
+# 11), so with DATABASE_URL set the worker refuses to start
+# (WorkerConfigurationError) rather than record an operation it cannot send.
+# It stays disabled so a fail-fast crashloop cannot break the Argo CD health
+# that condition 9 requires. Enable it once a connector transport is configured.
 worker:
   enabled: false
   repository: atlas-admin/redop-api

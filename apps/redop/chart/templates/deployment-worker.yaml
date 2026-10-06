@@ -1,9 +1,10 @@
 {{- if .Values.worker.enabled }}
 {{- /*
-  Background worker. Disabled by default: no RED worker entrypoint exists yet
-  (the workflow resume use case has no composition consumer), so enabling it
-  would crashloop and break the Argo CD health condition 9 requires. When the
-  entrypoint lands, set worker.enabled=true and worker.command to its module.
+  Background worker (`python -m redops.worker`). The entrypoint exists but a
+  durable worker needs a configured connector transport; without one it fails
+  fast (WorkerConfigurationError), so it stays disabled by default to keep the
+  Argo CD health condition 9 requires. When a connector transport is configured,
+  set worker.enabled=true and worker.command to this module.
 */}}
 apiVersion: apps/v1
 kind: Deployment
