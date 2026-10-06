@@ -21,7 +21,7 @@ Argo CD; there is no registry poller. Onboarding is automated by
 | App | Style | Chart / values | Argo Application | Namespace | Ingress |
 | --- | --- | --- | --- | --- | --- |
 | redop | in-repo | `apps/redop/chart` | `gitops/apps/redop.yaml` | `redop` | `redop.atlas.lan` |
-| immich | third-party + operator | `ghcr.io/immich-app/immich-charts/immich` `0.13.2` + `helm/values/immich.yaml` | `gitops/apps/immich.yaml` (pending) | `immich` | `immich.atlas.lan` (pending) |
+| immich | third-party + operator | OCI repo `ghcr.io/immich-app/immich-charts`, chart `immich` `0.13.2` + `helm/values/immich.yaml` | `gitops/apps/immich.yaml` | `immich` | `immich.atlas.lan` |
 
 ## redop — RED Operations Platform
 
@@ -42,7 +42,7 @@ PostgreSQL, defined entirely in one chart.
   and ports in `apps/redop/chart/values.yaml`.
 - **Known:** `redop-api` liveness probe intermittently times out.
 
-## immich — photo/video library (pending `feat/immich`)
+## immich — photo/video library
 
 Third-party app using the maintained upstream chart plus a CloudNativePG-managed
 PostgreSQL, because Immich v3 requires the `vchord` extension.
@@ -50,15 +50,25 @@ PostgreSQL, because Immich v3 requires the `vchord` extension.
 - **Operator:** `gitops/apps/cnpg.yaml` + `helm/values/cnpg.yaml`
   (CloudNativePG `0.29.1` / operator v1.30.1, namespace `cnpg-system`,
   sync-wave `-1`).
-- **Chart:** `ghcr.io/immich-app/immich-charts/immich` `0.13.2` (Immich v3.2.0)
-  with pinned values `helm/values/immich.yaml` and the `$values` ref.
+- **Chart:** OCI repo `ghcr.io/immich-app/immich-charts`, chart `immich`
+  `0.13.2` (Immich v3.2.0), with pinned values `helm/values/immich.yaml` and
+  the `$values` ref.
 - **Data:** `apps/immich/manifests/` — 50Gi `truenas-nfs` ReadWriteMany library
-  PVC, the `immich-database` CNPG `Cluster` (PostgreSQL 18 + `vchord-scratch`),
-  and the `Database` CR installing `vector`/`vchord`/`earthdistance`/`cube`.
-  DB credentials come from the operator-generated `immich-database-app` Secret.
+  PVC and a distinct `immich-database-local` CNPG `Cluster` (PostgreSQL 18 on
+  `local-path` + `vchord-scratch`), with a `Database` CR installing
+  `vector`/`vchord`/`earthdistance`/`cube`. Immich and the backup job are
+  configured to consume its generated `immich-database-local-app` Secret. The
+  failed original NFS-backed `immich-database` Cluster and its
+  `immich-database-1` PVC/PV are temporarily preserved and are not the
+  replacement database.
+- **Backups:** the job is configured to create daily PostgreSQL logical dumps as
+  Restic snapshots on a separate 100Gi `truenas-nfs` PVC, with 14 daily
+  snapshots retained. The Restic password is sealed. Backup success has not
+  been verified; confirm a successful run and list its snapshot before relying
+  on recovery.
 - **Namespace:** `immich`; **Ingress:** `immich.atlas.lan` (TLS `atlas-ca`);
-  valkey (Redis) and a 10Gi ML-model cache PVC run in-chart.
-- **Not yet merged/pushed to the forge** — reconcile only after the branch lands.
+  valkey (Redis) and a 10Gi ML-model cache PVC run in-chart. The database dump
+  does not back up the media library.
 
 ## Adding an app
 

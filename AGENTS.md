@@ -104,7 +104,9 @@ kubectl -n <ns> get deploy,po,ingress,certificate
   overcommitted; ~45–64% memory used). Set realistic `requests`/`limits`.
 - There is a single worker (`atlas-k3s-worker1`); stateful platform data uses the
   `truenas-nfs` StorageClass (TrueNAS NFS). `local-path` is the cluster default
-  for ephemeral/non-platform workloads only.
+  for ephemeral/non-platform workloads, with one explicit exception: Immich's
+  PostgreSQL data uses node-local `local-path`; off-node PostgreSQL logical-dump
+  snapshots are stored with Restic on a separate NFS PVC.
 - PVC storage classes are immutable — a wrong `storageClassName` means recreating
   the PVC.
 - `docs/` and these instructions are the source of truth for ops; update them

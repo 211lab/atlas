@@ -1,0 +1,25 @@
+# The Immich database and the extensions Immich requires. Created once the
+# CloudNativePG cluster (postgres-cluster-local.yaml) is available. `app`/`app`
+# is the database/owner CloudNativePG bootstraps by default; its credentials are
+# in the generated `immich-database-local-app` secret consumed by Immich.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: immich-database-local
+  namespace: immich
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  name: app
+  owner: app
+  cluster:
+    name: immich-database-local
+  extensions:
+    - name: vector
+      ensure: present
+    - name: vchord
+      ensure: present
+    - name: earthdistance
+      ensure: present
+    - name: cube
+      ensure: present

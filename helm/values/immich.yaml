@@ -3,7 +3,7 @@
 #
 # Immich v3 ships no bundled database: it needs an external PostgreSQL with the
 # `vchord` (and vector/cube/earthdistance) extensions. Here that is the
-# CloudNativePG cluster `immich-database` created from
+# CloudNativePG cluster `immich-database-local` created from
 # apps/immich/manifests/ (see gitops/apps/cnpg.yaml + gitops/apps/immich.yaml).
 # Redis is enabled in-chart as the bundled valkey.
 #
@@ -35,22 +35,22 @@ server:
             DB_HOSTNAME:
               valueFrom:
                 secretKeyRef:
-                  name: immich-database-app
+                  name: immich-database-local-app
                   key: host
             DB_USERNAME:
               valueFrom:
                 secretKeyRef:
-                  name: immich-database-app
+                  name: immich-database-local-app
                   key: user
             DB_PASSWORD:
               valueFrom:
                 secretKeyRef:
-                  name: immich-database-app
+                  name: immich-database-local-app
                   key: password
             DB_DATABASE_NAME:
               valueFrom:
                 secretKeyRef:
-                  name: immich-database-app
+                  name: immich-database-local-app
                   key: dbname
           resources:
             requests:
