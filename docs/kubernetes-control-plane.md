@@ -14,7 +14,7 @@ Verified 2026-10-02 from the Atlas API VIP (`https://10.0.0.108:6443`).
 | Kubernetes API | Deployed | kube-vip virtual IP: https://10.0.0.108:6443 |
 | Secret encryption | Deployed | Sealed Secrets encryption at rest |
 | Helm releases | Deployed | `atlas-monitoring` (monitoring), `csi-driver-nfs`, `traefik`, `traefik-crd` (kube-system) |
-| NFS CSI | Deployed | Driver is installed; no default StorageClass exists yet |
+| NFS CSI | Deployed | Driver installed; `truenas-nfs` StorageClass available for platform data (`local-path` remains the cluster default) |
 | TrueNAS NFS | Deployed | Dataset `data/atlas-k8s` on 10.0.10.26 exported at `/mnt/data/atlas-k8s` to `10.0.0.0/24,10.0.10.0/24`; consumed via the `truenas-nfs` StorageClass (see GitOps platform runbook). Existing `movies` export left untouched |
 | Prometheus and Grafana | Deployed | `atlas-monitoring` kube-prometheus-stack 88.3.0 (app v0.93.0) runs in the monitoring namespace |
 | Grafana access | Deployed | Network UI at http://10.0.0.110:3000 with anonymous Viewer access; administrator login remains available |
@@ -231,7 +231,9 @@ atlas-k3s-cp3       Ready    control-plane,etcd   48d   v1.36.3+k3s1   10.0.0.11
 atlas-k3s-worker1   Ready    worker               48d   v1.36.3+k3s1   10.0.0.113    Ubuntu 24.04.4 LTS   containerd://2.3.2-k3s2
 ~~~
 
-Expected namespaces: `default`, `kube-node-lease`, `kube-public`, `kube-system`, `monitoring`.
+Expected namespaces (re-verified 2026-10-04): `default`, `kube-node-lease`,
+`kube-public`, `kube-system`, `argocd`, `cert-manager`, `gitea`, `sealed-secrets`,
+`monitoring`, `demo`, `redop`, and an empty orphan `external-dns`.
 
 The active cluster endpoint should be https://10.0.0.108:6443, never 127.0.0.1, when the command runs from Titan or WSL.
 
