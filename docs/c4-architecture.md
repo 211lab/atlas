@@ -82,7 +82,6 @@ C4Container
             Container(certmgr, "cert-manager", "v1.21.2", "Issues certs from atlas-ca")
             Container(sealed, "Sealed Secrets", "controller 0.40.0", "Decrypts committed secrets")
             Container(prom, "kube-prometheus-stack", "88.3.0", "Prometheus + Grafana + exporters")
-            Container(demo, "demo-app", "nginx", "Example GitOps-deployed workload")
         }
         ContainerDb(pveNodeExporter, "PVE node-exporter", "systemd service", "Physical-host metrics scraped by Prometheus")
     }
@@ -95,7 +94,6 @@ C4Container
     Rel(dev, traefik, "Pushes to git.atlas.lan / sees argocd.atlas.lan")
     Rel(traefik, gitea, "Routes git/registry hosts")
     Rel(traefik, argocd, "Routes argocd.atlas.lan")
-    Rel(traefik, demo, "Routes demo.atlas.lan")
     Rel(gitea, giteapg, "Reads/writes", "TCP 5432")
     Rel(runner, gitea, "Registers, pulls jobs, pushes packages", "HTTP + internal registry")
     Rel(argocd, gitea, "Reads GitOps repo", "HTTPS internal")
@@ -125,7 +123,7 @@ C4Component
     Component(redis, "Redis", "Argo CD", "Cache")
     Component(project, "platform AppProject", "Argo CD", "RBAC + source/destination allowlist")
 
-    Component(gitea, "Gitea", "forge", "Repos: atlas (GitOps), demo-app (app source)")
+    Component(gitea, "Gitea", "forge", "Repositories: atlas (GitOps) and application source")
     Component(registry, "Gitea OCI registry", "registry", "Stores built images")
     Component(runner, "act_runner", "CI", "Runs .gitea/workflows/* jobs (docker via dind)")
     Component(sealed, "sealed-secrets-controller", "security", "Unseals committed SealedSecrets")
@@ -165,7 +163,7 @@ C4Component
     Component(coredns, "CoreDNS", "Cluster DNS", "atlas.lan -> Traefik ClusterIP (coredns-custom)")
     Component(certmgr, "cert-manager", "TLS", "atlas-ca ClusterIssuer")
     Component(ca, "atlas-ca", "CA", "Self-signed root -> per-host certs")
-    Component(ing, "Ingress resources", "K8s", "git/registry/argocd/demo .atlas.lan")
+    Component(ing, "Ingress resources", "K8s", "git/registry/argocd/redop .atlas.lan")
 
     Rel(ws, pihole, "DNS query *.atlas.lan", "UDP/TCP 53")
     Rel(ws, svclb, "HTTPS 443", "TLS")
@@ -234,7 +232,7 @@ C4Deployment
         }
         Deployment_Node(babbage, "Babbage 10.0.0.104", "PVE host") {
             Deployment_Node(wk, "atlas-k3s-worker1 / VM 204", "Ubuntu 24.04, 2 vCPU, 5.7 GiB, 10.0.0.113") {
-                Container(pods, "Platform + app pods", "Gitea, Argo CD, runner, monitoring, demo-app")
+                Container(pods, "Platform + app pods", "Gitea, Argo CD, runner, monitoring, Redop")
             }
         }
         Deployment_Node(extra, "Memex 10.0.0.105 / Minsky 10.0.0.106", "Additional PVE/Ubuntu hosts", "Non-k3s lab services")
@@ -289,7 +287,7 @@ flowchart LR
     T -- git.atlas.lan --> G[Gitea]
     T -- registry.atlas.lan --> R[Gitea registry]
     T -- argocd.atlas.lan --> AR[Argo CD server]
-    T -- demo.atlas.lan --> D[demo-app]
+    T -- redop.atlas.lan --> D[Redop]
     G & R & AR & D --> TLS[(atlas-ca TLS secret)]
 ```
 
@@ -297,13 +295,13 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Dev[Developer] -->|git push / tag v*| G[Gitea: demo-app repo]
+    Dev[Developer] -->|git push / tag v*| G[Gitea: application repo]
     G -->|Actions job| Runner[act_runner + dind]
-    Runner -->|docker build/push| Reg[registry.atlas.lan/atlas-admin/demo-app]
+    Runner -->|docker build/push| Reg[registry.atlas.lan/atlas-admin/app]
     Runner -->|commits tag| Repo[Gitea: atlas GitOps repo]
     Repo -->|push webhook| Argo[Argo CD /api/webhook]
     Argo -->|app-of-apps sync| K8s[Deployments / Helm releases]
-    K8s --> Demo[demo-app running new tag]
+    K8s --> App[application running new tag]
     Repo -. mirror .-> Hub[GitHub 211lab/atlas]
 ```
 
@@ -346,7 +344,7 @@ sequenceDiagram
 | --- | --- |
 | Kubernetes | k3s v1.36.3+k3s1, 3× control-plane/etcd + 1 worker |
 | API endpoint | https://10.0.0.108:6443 (kube-vip) |
-| Ingress hosts | `git.atlas.lan`, `registry.atlas.lan`, `argocd.atlas.lan`, `demo.atlas.lan` |
+| Ingress hosts | `git.atlas.lan`, `registry.atlas.lan`, `argocd.atlas.lan`, `redop.atlas.lan` |
 | DNS | Pi-hole (LAN) + CoreDNS `coredns-custom` (in-cluster) |
 | TLS CA | `atlas-ca` ClusterIssuer (cert-manager v1.21.2) |
 | Forge/registry | Gitea 1.27.0, PostgreSQL 17, built-in OCI registry |

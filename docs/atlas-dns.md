@@ -61,7 +61,7 @@ address=/atlas.lan/10.0.0.113
 
 **Explicit records always win** over the wildcard (`dns.hosts` is consulted
 before `address=/…`), so `pihole.atlas.lan` stays `10.0.0.10` and
-`demo.atlas.lan` stays its ExternalDNS-managed `10.0.0.110`.
+`redop.atlas.lan` is managed by ExternalDNS and resolves to a Traefik node.
 
 ### Static records for non-Kubernetes hosts
 
@@ -167,7 +167,8 @@ To make tailnet clients *use* Pi-hole, set it in the Tailscale admin console
 
 1. **DNS → Nameservers → Add nameserver → Custom** → `10.0.0.10`.
 2. Enable **Restrict to search domain** (split DNS) and enter `atlas.lan`.
-3. (Optional) **DNS → Search domains** → add `atlas.lan` so `demo` resolves too.
+3. (Optional) **DNS → Search domains** → add `atlas.lan` so short service names
+   resolve too.
 4. Keep **MagicDNS** on.
 
 If you instead want *all* tailnet DNS through Pi-hole, add `10.0.0.10` as a
@@ -183,9 +184,9 @@ tailscale set --accept-routes --accept-dns=true
 Verify from a tailnet device that is **not** on the lab LAN:
 
 ```sh
-dig +short @10.0.0.10 demo.atlas.lan     # 10.0.0.110
-dig +short demo.atlas.lan                # via Tailscale DNS
-curl -ksS -o /dev/null -w '%{http_code}\n' https://demo.atlas.lan/   # 200
+dig +short @10.0.0.10 redop.atlas.lan     # Traefik node IPs
+dig +short redop.atlas.lan                # via Tailscale DNS
+curl -ksS -o /dev/null -w '%{http_code}\n' https://redop.atlas.lan/   # 200
 ```
 
 Automating it (optional): the same settings can be pushed with a Tailscale API
@@ -212,7 +213,7 @@ dig +short @10.0.0.10 newservice.atlas.lan    # 10.0.0.110-113
 dig +short @10.0.0.10 memex.atlas.lan         # 10.0.0.105
 
 # ExternalDNS-managed Ingress host
-dig +short @10.0.0.10 demo.atlas.lan          # 10.0.0.110
+dig +short @10.0.0.10 redop.atlas.lan         # Traefik node IPs
 
 # ExternalDNS health
 kubectl -n argocd get application external-dns      # Synced / Healthy
@@ -220,7 +221,7 @@ kubectl -n external-dns logs deploy/external-dns -c webhook --tail=20
 ```
 
 Success = names resolve from Pi-hole and the endpoint answers over HTTPS:
-`curl -ksS --resolve demo.atlas.lan:443:10.0.0.110 https://demo.atlas.lan/`
+`curl -ksS --resolve redop.atlas.lan:443:10.0.0.110 https://redop.atlas.lan/`
 → `200`.
 
 ## Troubleshooting

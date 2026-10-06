@@ -20,12 +20,8 @@ git push / tag v* ─▶ Gitea repo ─▶ Actions runner builds+pushes image
 There is **no registry poller**. The build job itself promotes the tag into the
 platform repo, and Gitea notifies Argo CD.
 
-The canonical worked example is the demo app; always read it before inventing
-anything:
-
-- `examples/demo-app/.gitea/workflows/build.yaml` (CI + promotion)
-- `examples/demo-app/chart/` (Helm chart)
-- `gitops/apps/demo-app.yaml` (Argo CD Application)
+Use the workflow and chart skeletons in this skill as a starting point, adapting
+them to the application's build and runtime requirements.
 
 Full background: `docs/gitops-platform.md` and `docs/c4-architecture.md`.
 
@@ -75,11 +71,11 @@ Ask/derive and record them; the rest of the skill substitutes these:
 
 | Variable | Example | Notes |
 | --- | --- | --- |
-| `APP` | `demo-app` | repo + chart + k8s resource name (lowercase, hyphens) |
+| `APP` | `myapp` | repo + chart + k8s resource name (lowercase, hyphens) |
 | `ORG` | `atlas-admin` | Gitea owner |
-| `NS` | `demo` | target namespace (usually `$APP`) |
+| `NS` | `myapp` | target namespace (usually `$APP`) |
 | `PORT` | `80` | container port |
-| `HOST` | `demo.atlas.lan` | ingress hostname (`$APP.atlas.lan` unless told otherwise) |
+| `HOST` | `myapp.atlas.lan` | ingress hostname (`$APP.atlas.lan` unless told otherwise) |
 | `TAG` | `v0.1.0` | initial semver tag |
 | `SRC` | `/path/to/checkout` | existing app checkout |
 | `DOCKERFILE` | `Dockerfile` | path relative to repo root |
@@ -108,8 +104,8 @@ set_secret REGISTRY_TOKEN "$GITEA_TOKEN"
 
 ## Step 3 — Add the CI workflow
 
-Create `$SRC/.gitea/workflows/build.yaml`. Substitute `APP`/`ORG`. Copy the
-demo and change only the workflow name, repo path, and destination image.
+Create `$SRC/.gitea/workflows/build.yaml`. Substitute `APP`/`ORG` in this
+workflow skeleton and adapt build steps as needed.
 
 ```yaml
 name: build
@@ -181,8 +177,8 @@ curl -ksS -X POST -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: appli
 
 ## Step 5 — Add the GitOps chart and Argo CD Application
 
-In the **platform repo** (`211lab/atlas`), create `apps/$APP/chart/`.
-Start from `examples/demo-app/chart` and edit:
+In the **platform repo** (`211lab/atlas`), create `apps/$APP/chart/` using these
+chart metadata and values skeletons:
 
 `apps/$APP/chart/Chart.yaml`
 ```yaml
@@ -214,12 +210,11 @@ resources:
   limits: { memory: 128Mi }
 ```
 
-Copy `examples/demo-app/chart/templates/{deployment,service,ingress}.yaml`
-verbatim (they are generic). The deployment already references
-`imagePullSecrets: gitea-registry`.
+Add templates for the app's Deployment, Service, and (if needed) Ingress. The
+Deployment should reference `imagePullSecrets: gitea-registry`.
 
-Create the Argo CD Application `gitops/apps/$APP.yaml` (copy
-`gitops/apps/demo-app.yaml`, change name/namespace/path):
+Create the Argo CD Application `gitops/apps/$APP.yaml` from this generic manifest
+skeleton:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

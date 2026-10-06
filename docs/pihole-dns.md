@@ -13,7 +13,7 @@ Today `*.atlas.lan` is only resolvable *inside* the cluster (a CoreDNS
 `coredns-custom` entry) and by workstations that already have records. A
 dedicated Pi-hole gives one authoritative, network-wide resolver, and the
 in-cluster automation writes an A record for every Ingress host as it appears —
-so `demo.atlas.lan`, `git.atlas.lan`, and anything deployed later resolve on
+so `redop.atlas.lan`, `git.atlas.lan`, and anything deployed later resolve on
 every device that uses Pi-hole.
 
 ```mermaid
@@ -172,7 +172,7 @@ the lab domain so it never touches other Pi-hole records.
 kubectl -n argocd get application external-dns
 kubectl -n external-dns logs deploy/external-dns --tail=50
 # a record for an existing Ingress should now answer from Pi-hole:
-dig +short @10.0.0.10 demo.atlas.lan
+dig +short @10.0.0.10 redop.atlas.lan
 ```
 
 ### 2.4 Alternative: dnsweaver (homelab-focused, Pi-hole native)
