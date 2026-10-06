@@ -119,25 +119,34 @@
   register: pihole_dnsmasq_current
   changed_when: false
   failed_when: false
+  check_mode: false
   when: pihole_dnsmasq_lines | length > 0
 
-# Wildcard resolution lives in dnsmasq `address=/domain/ip` lines rather than
-# dns.hosts (which supports only literal hostnames). external-dns never reads
-# or writes this key, so replacing it is safe.
-- name: Apply wildcard dnsmasq lines (misc.dnsmasq_lines)
+# Wildcard resolution and the local reverse-DNS rule live in dnsmasq lines,
+# rather than dns.hosts (which supports only literal hostnames).
+- name: Build merged dnsmasq lines
+  ansible.builtin.set_fact:
+    pihole_dnsmasq_current_lines: >-
+      {{ ((pihole_dnsmasq_current.stdout | default('[]') | trim)[1:-1]).split(',')
+         | map('trim') | reject('equalto', '') | list }}
+
+- name: Add desired dnsmasq lines without replacing existing entries
+  ansible.builtin.set_fact:
+    pihole_dnsmasq_merged_lines: >-
+      {{ (pihole_dnsmasq_current_lines + pihole_dnsmasq_lines) | unique | list }}
+
+- name: Apply dnsmasq lines (misc.dnsmasq_lines)
   ansible.builtin.command:
     argv:
       - pihole-FTL
       - --config
       - misc.dnsmasq_lines
-      - "{{ pihole_dnsmasq_lines | to_json }}"
+      - >-
+        {{ pihole_dnsmasq_merged_lines | to_json }}
   when:
     - pihole_dnsmasq_lines | length > 0
     - >-
-      pihole_dnsmasq_lines
-      | select('in', pihole_dnsmasq_current.stdout | default(''))
-      | list | length
-      < pihole_dnsmasq_lines | length
+      pihole_dnsmasq_current_lines != pihole_dnsmasq_merged_lines
   changed_when: true
   notify: Restart pihole-FTL
 
@@ -152,6 +161,7 @@
     cmd: "dig +short @127.0.0.1 {{ pihole_hostname }}"
   register: pihole_self_test
   changed_when: false
+  check_mode: false
   retries: 5
   delay: 3
   until: pihole_self_test.stdout | length > 0
