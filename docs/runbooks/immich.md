@@ -8,30 +8,43 @@ The recovery database is configured as a distinct Cluster,
 separate `immich-backup` PVC use `truenas-nfs`. Local database storage is not
 node-loss protection; recovery depends on off-node logical dumps.
 
-## Bootstrap failure and preservation
+## Bootstrap failure and database design
 
 The original NFS-backed `Cluster/immich-database` was recorded as
 `Initialized=True`, `Ready=False`, with its initdb Job exhausting retries after
-PostgreSQL could not initialize the NFS data directory with UID 26 ownership.
-Its `immich-database-1` PVC is bound to `truenas-nfs`, and its PV reclaim policy
-is `Delete`.
+PostgreSQL `initdb` failed because the NFS data directory had incorrect
+ownership for PostgreSQL's UID 26. CNPG 1.30.1 treats that Cluster as already
+initialized and will not create a blank primary if its PVC group is removed, so
+it cannot be reset in place. The replacement is a distinct
+`immich-database-local` Cluster on `local-path`, with its own PostgreSQL 18 data
+volume and `Database` resource for `vector`, `vchord`, `earthdistance`, and
+`cube`. Immich and the backup job use its generated
+`immich-database-local-app` Secret. Reconcile the design through GitOps and wait
+for the new Cluster to be ready before relying on that Secret.
 
-**Do NOT delete the current initialized-but-unready cluster's PVC or PV to reset
-it.** Do not delete, rename, patch, or change storage settings on the original
-`immich-database` Cluster, its failed initdb Job, its PVC, or its PV during this
-recovery. The old NFS resources are temporarily preserved for investigation and
-are not used by Immich after cutover. Their cleanup is a separate destructive
-operation requiring a fresh ownership/reclaim-policy check and explicit
-approval.
+## Approved namespace reset
 
-Use a distinct Cluster named `immich-database-local` with
-`storageClass: local-path`; do not try to change the existing Cluster's PVC
-storage class or reuse its name. Reconcile recovery resources through GitOps.
-The new cluster uses PostgreSQL 18 and a corresponding `Database` resource for
-`vector`, `vchord`, `earthdistance`, and `cube`. Wait for the new Cluster to be
-ready before relying on its generated `immich-database-local-app` Secret. Keep
-the old NFS Cluster/PVC/PV in place until the replacement is proven healthy and
-cleanup is separately approved.
+The user explicitly approved a one-time reset of namespace `immich` for this
+rollout, including its library data. After the failed NFS Cluster and Database
+are removed from the active GitOps source and the desired revision is verified,
+delete the entire `immich` namespace and allow Argo CD to recreate it from Git.
+This removes every resource in the namespace, including the failed database
+Cluster/Database, initdb Job and pods, secrets, and all PVCs/PVs, including the
+50Gi library PVC/PV. The library PV's `Delete` reclaim policy means its contents
+will be lost. Do not affect any other namespace or the CloudNativePG operator
+in `cnpg-system`; do not hand-apply application resources.
+
+This approval is for that one-time rollout reset, not standing authorization
+for future resets. For every repeat reset, stop before deletion and obtain fresh,
+explicit user confirmation that names namespace `immich` and acknowledges that
+all its resources and library/database data will be deleted. Before proceeding,
+verify that the active GitOps source contains only the intended
+`immich-database-local` design, that the deletion target is exactly `immich`,
+and that no other namespace or the operator is in scope. Without that
+confirmation and those checks, do not delete the namespace or any library
+PVC/PV. Once confirmed, delete only namespace `immich`, wait for its resources
+and bound volumes to be reclaimed, then let Argo CD recreate the desired
+resources from Git.
 
 ## Normal backups
 
@@ -71,16 +84,15 @@ unverified until a backup Job succeeds and Restic can list its snapshot.
    ```
 
 4. Restore into a separate healthy CloudNativePG Cluster running the same
-   PostgreSQL major version, with the Immich extensions installed. Do not
-   restore into or switch Immich back to the failed original NFS Cluster. Use
-   the replacement Cluster's generated `<cluster>-app` Secret to connect to its
-   `app` database and import the plain SQL dump with `psql` and
-   `ON_ERROR_STOP=1`.
+   PostgreSQL major version, with the Immich extensions installed. The intended
+   target is the healthy `immich-database-local` Cluster; the failed NFS Cluster
+   cannot be reset in place and is removed by the approved namespace reset. Use
+   the target Cluster's generated `<cluster>-app` Secret to connect to its `app`
+   database and import the plain SQL dump with `psql` and `ON_ERROR_STOP=1`.
 5. Update Immich and the backup job to reference the replacement Cluster's
    generated application Secret through GitOps. Resume Immich only after the
    database restore and connection have been checked; verify application
-   behavior separately. Retain both old and replacement PVCs until recovery is
-   proven and cleanup is separately approved.
+   behavior separately. Retain the replacement PVC until recovery is proven.
 
 Rehearse this procedure before depending on it for node-loss recovery. Database
 restores do not restore the photo/video library.

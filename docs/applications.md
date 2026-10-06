@@ -53,19 +53,16 @@ PostgreSQL, because Immich v3 requires the `vchord` extension.
 - **Chart:** OCI repo `ghcr.io/immich-app/immich-charts`, chart `immich`
   `0.13.2` (Immich v3.2.0), with pinned values `helm/values/immich.yaml` and
   the `$values` ref.
-- **Data:** `apps/immich/manifests/` — 50Gi `truenas-nfs` ReadWriteMany library
-  PVC and a distinct `immich-database-local` CNPG `Cluster` (PostgreSQL 18 on
-  `local-path` + `vchord-scratch`), with a `Database` CR installing
-  `vector`/`vchord`/`earthdistance`/`cube`. Immich and the backup job are
-  configured to consume its generated `immich-database-local-app` Secret. The
-  failed original NFS-backed `immich-database` Cluster and its
-  `immich-database-1` PVC/PV are temporarily preserved and are not the
-  replacement database.
+- **Data:** `apps/immich/manifests/` — `immich-database-local` CNPG `Cluster`
+  (PostgreSQL 18 on `local-path` + `vchord-scratch`) and a `Database` CR
+  installing `vector`/`vchord`/`earthdistance`/`cube`. Immich and the backup job
+  consume its generated `immich-database-local-app` Secret. The photo library
+  uses a separate 50Gi `truenas-nfs` ReadWriteMany PVC.
 - **Backups:** the job is configured to create daily PostgreSQL logical dumps as
   Restic snapshots on a separate 100Gi `truenas-nfs` PVC, with 14 daily
-  snapshots retained. The Restic password is sealed. Backup success has not
-  been verified; confirm a successful run and list its snapshot before relying
-  on recovery.
+  snapshots retained. The Restic password is sealed. This describes the
+  configured design only; backup success has not been verified. Confirm a
+  successful run and list its snapshot before relying on recovery.
 - **Namespace:** `immich`; **Ingress:** `immich.atlas.lan` (TLS `atlas-ca`);
   valkey (Redis) and a 10Gi ML-model cache PVC run in-chart. The database dump
   does not back up the media library.

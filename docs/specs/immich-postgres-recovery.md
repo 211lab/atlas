@@ -1,100 +1,109 @@
-# Immich PostgreSQL recovery and local storage
+# Immich clean reset after failed PostgreSQL bootstrap
 
 ## Goal
 
-Run Immich against a new CloudNativePG database on `local-path`, with PostgreSQL
-logical dumps protected by Restic on NFS, while preserving the failed initial
-NFS-backed Cluster and its PVC until the replacement is proven healthy.
+Deploy Immich from a clean namespace using a new CloudNativePG database on
+`local-path`, with PostgreSQL logical dumps protected by Restic on NFS.
 
 ## Current evidence
 
-- The initial `Cluster/immich-database` is `Cluster is unrecoverable and needs
-  manual intervention`, `Initialized=True`, and `Ready=False`.
+- `Cluster/immich-database` is `Cluster is unrecoverable and needs manual
+  intervention`, `Initialized=True`, and `Ready=False`.
 - Its `immich-database-1-initdb` Job exhausted retries. Logs show PostgreSQL
   `initdb` fails because the NFS data directory has wrong ownership (PostgreSQL
   runs as UID 26).
-- The current `immich-database-1` PVC is bound to `truenas-nfs`; its PV reclaim
-  policy is `Delete`.
-- **ASSUMPTION:** The failed initial database contains no usable PostgreSQL
-  database: every observed initdb attempt exited before initialization completed
-  and removed its data directory. Preserve the old PVC/PV anyway until the new
-  database is ready and cleanup is separately approved.
+- `immich-database-1` is bound to `truenas-nfs`; its PV reclaim policy is
+  `Delete`. `immich-library` is a 50Gi NFS PVC, and Immich's server never became
+  ready.
+- CNPG 1.30.1 refuses to create a blank primary after this Cluster is marked
+  initialized if its PVC group is removed. The replacement therefore uses a
+  separate Cluster name and never attempts to reset this Cluster in place.
+
+## User authorization
+
+The user explicitly chose **Immich namespace, including library** for the reset.
+This authorizes deleting all resources in namespace `immich`, including the
+failed database PVC/PV and the NFS-backed photo-library PVC/PV. It does not
+authorize deleting resources in other namespaces or the CloudNativePG operator
+in `cnpg-system`.
 
 ## User-visible behavior
 
-Immich uses a newly named CloudNativePG Cluster with its PostgreSQL data on
-`local-path`. A daily `pg_dump` is saved as a Restic snapshot on a separate
-TrueNAS NFS PVC. The existing failed NFS-backed Cluster and PVC remain
-untouched during rollout and are not used by Immich.
+Argo CD recreates the `immich` namespace from the current GitOps declaration.
+Immich uses the newly named CloudNativePG Cluster `immich-database-local` with
+PostgreSQL data on `local-path`. The photo library and daily PostgreSQL Restic
+backup use separate TrueNAS NFS PVCs.
 
 ## Non-goals
 
-- Do not delete, rename, patch, or change storage settings on the existing
-  `Cluster/immich-database`, its failed initdb Job, its PVC, or its PV during
-  this rollout.
-- Do not change the Immich chart pin (`0.13.2`) or app image pin (`v3.2.0`).
-- Do not delete the photo-library PVC or namespace.
+- Do not delete resources outside the `immich` namespace, including the CNPG
+  operator, other applications, Argo CD, or Gitea.
+- Do not change the Immich chart pin (`0.13.2`) or image pin (`v3.2.0`).
+- Do not commit plaintext credentials.
 - Do not claim backup readiness until a Restic snapshot is successfully
   created and can be listed.
 
 ## Acceptance criteria
 
-- **Given** the failed NFS Cluster remains in place, **when** the local-path
-  recovery resources are reconciled, **then** a distinct Cluster
-  `immich-database-local` is created with the same PostgreSQL major version and
-  required `vchord` extension, using `storageClass: local-path`.
-- **Given** the new Cluster becomes ready, **when** the `Database` resource and
-  Immich values reconcile, **then** both Immich and the backup CronJob consume
-  the generated `immich-database-local-app` Secret.
-- **Given** the initial NFS resources exist, **when** the recovery is deployed,
-  **then** the original `immich-database` Cluster and its
-  `immich-database-1` PVC/PV remain present and unmodified.
+- **Given** the failed NFS design is removed from the GitOps source, **when**
+  the namespace reset is performed, **then** all pre-reset resources in
+  `immich` are removed, including the legacy Cluster/Database, failed initdb
+  Job/pods, database PVC/PV, and library PVC/PV; no other namespace is changed.
+- **Given** the namespace is gone, **when** Argo CD reconciles the current
+  source, **then** it recreates only the new design: one local-path Cluster
+  `immich-database-local`, its Database, the library and backup PVCs, and the
+  Immich chart resources.
+- **Given** the new Cluster becomes ready, **when** Immich and the backup job
+  reconcile, **then** both use `immich-database-local-app` and no reference to
+  the failed `immich-database-app` remains in the desired manifests/values.
 - **Given** the new database is ready, **when** Immich reconciles, **then** its
-  Application is `Synced/Healthy`, the server and required components are
-  Ready, and the ingress remains `immich.atlas.lan`.
+  Application is `Synced/Healthy`, required pods are Ready, and ingress remains
+  `immich.atlas.lan`.
 - **Given** the backup PVC and sealed Restic credential are available, **when**
   a backup run succeeds, **then** Restic can list a snapshot tagged
   `immich-postgres` on the NFS-backed repository.
-- **Given** this change is pushed, **when** both remotes are inspected, **then**
+- **Given** changes are pushed, **when** both remotes are inspected, **then**
   GitHub and Gitea `main` point to the same commit.
 
 ## Constraints
 
-- Use GitOps for desired state; do not hand-apply the application manifests.
-- Preserve the corrected public OCI source path
-  `ghcr.io/immich-app/immich-charts` + chart `immich` version `0.13.2`.
-- Store only a SealedSecret for the Restic password; never commit a plaintext
-  credential.
-- Keep media and backup data on separate `truenas-nfs` PVCs; keep the new
-  database on node-local `local-path`.
+- Use GitOps for desired state; do not hand-apply application manifests.
+- Preserve the corrected OCI source `ghcr.io/immich-app/immich-charts` + chart
+  `immich` version `0.13.2`.
+- Keep the new PostgreSQL volume on `local-path`; put media and backups on
+  separate `truenas-nfs` PVCs.
 - The Restic job backs up PostgreSQL only, not the media library.
 
 ## Plan
 
-1. Add a new CNPG Cluster and Database resource rather than resetting the
-   initialized-but-unready NFS Cluster.
-2. Add the 100Gi NFS backup PVC, daily Restic dump CronJob, and sealed password.
-3. Point Immich and the backup job at the new Cluster's generated application
-   Secret; update the runbook and application catalog.
-4. Push identical Git history to both remotes and let Argo CD reconcile.
-5. Verify the new PVC has `local-path`, CNPG reaches Ready, Immich reaches
-   `Synced/Healthy`, and a Restic backup succeeds.
+1. Remove the legacy NFS `Cluster` and `Database` manifests from the active
+   Immich source; retain the local-path Cluster, local Database, and backups.
+2. Push the desired state to both remotes.
+3. Terminate the stale Argo sync operation that is pinned to the old revision
+   and verify the Immich Application now targets the current Git revision.
+4. Delete namespace `immich` as explicitly authorized; wait for it and its
+   pre-reset PVC/PV backing volumes to be reclaimed.
+5. Let Argo CD recreate the namespace and all resources from Git; do not run
+   `kubectl apply` for application resources.
+6. Verify local-path database readiness, Immich health, new PVC identities, and
+   one successful Restic snapshot.
 
-## Rollback and data handling
+## Destructive impact and rollback
 
-Before any application data is written to the new database, rollback means
-stopping the new rollout while retaining both database PVCs for investigation.
-After user data is written, rollback requires a Restic restore into a separate
-healthy Cluster; do not switch Immich to the failed NFS Cluster.
+Deleting namespace `immich` removes the existing 50Gi library PVC and its bound
+NFS PV (reclaim policy `Delete`), so any contents in that volume will be lost.
+It also removes the failed database PVC/PV and generated secrets/jobs. The user
+has explicitly authorized this Immich-namespace reset. The previous library and
+database contents cannot be recovered from these volumes afterward; the new
+database and library are recreated empty.
 
-The old NFS Cluster, failed Job, PVC, and PV are deliberately retained. Their
-eventual cleanup is a separate destructive operation requiring a fresh check of
-ownership/reclaim policy and explicit approval; this spec does not authorize
-their deletion.
+Before namespace deletion, the GitOps change can be reverted. After deletion,
+rollback cannot restore the old NFS media or database contents. Recovery would
+require independent photo backups and/or Restic snapshots from the new design.
 
 ## Open questions
 
-- Validate the TrueNAS capacity available for the 100Gi backup PVC before
-  relying on it for production data.
+- Validate TrueNAS capacity for the 100Gi backup PVC before relying on it for
+  production.
 - Rehearse a Restic restore and separately back up the media library before
   treating Immich as the only copy of photos.
