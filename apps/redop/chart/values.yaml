@@ -13,9 +13,9 @@
 # exact lines.
 
 # Image tags promoted by CI. Empty falls back to the chart appVersion.
-apiTag: sha-e11b6ac
-uiTag: sha-e11b6ac
-cockpitTag: sha-cce20f2
+apiTag: sha-b6f1363
+uiTag: sha-b6f1363
+cockpitTag: sha-b6f1363
 
 image:
   registry: registry.atlas.lan
