@@ -13,9 +13,9 @@
 # exact lines.
 
 # Image tags promoted by CI. Empty falls back to the chart appVersion.
-apiTag: sha-09956b7
-uiTag: sha-09956b7
-cockpitTag: sha-09956b7
+apiTag: sha-de44d86
+uiTag: sha-de44d86
+cockpitTag: sha-de44d86
 
 image:
   registry: registry.atlas.lan
@@ -84,19 +84,19 @@ cockpit:
       memory: 1Gi
   backendBaseUrl: http://redop-api:8000/openexecutive
 
-# The background worker (`python -m redops.worker`, W1). The entrypoint now
-# exists and composes the durable workflow resume loop, but a durable worker
-# also needs a real connector transport so a recorded external operation is
-# actually sent; the connector inventory is an open decision (SPEC.md section
-# 11), so with DATABASE_URL set the worker refuses to start
-# (WorkerConfigurationError) rather than record an operation it cannot send.
-# It stays disabled so a fail-fast crashloop cannot break the Argo CD health
-# that condition 9 requires. Enable it once a connector transport is configured.
+# The background worker (`python -m redops.worker`, W1). The entrypoint composes
+# the durable workflow resume loop. Owner decision 2026-10-06: until a real
+# connector is named (SPEC.md section 11 connector inventory), the worker runs
+# with the interim fail-on-send transport, so it starts and resumes durable
+# workflows while refusing to send (nothing leaves the box). It is enabled on
+# that basis; a real connector replaces the transport without a caller change.
 worker:
-  enabled: false
+  enabled: true
   repository: atlas-admin/redop-api
   replicas: 1
   command: ["python", "-m", "redops.worker"]
+  # The client roster the worker scans, one client at a time (SPEC.md section 9).
+  tenants: "3fmindset"
   resources:
     requests:
       cpu: 100m
