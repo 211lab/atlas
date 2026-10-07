@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gitea-registry
+  namespace: atlas-landing
+spec:
+  encryptedData:
+    .dockerconfigjson: AgBE+oMWqU3zSsU+DfSI98b03pZnCrskqpip84if+pl4twDfEqECZ7GnSDVkCcpHMgH+Vj8P/xR5X3cVUdZAhZ2fM1HYmZTFLIhc+VijIwtfDJGtJIAWecfY5bnSKMgLBdoZ8yENtWHwOEF2EVg3Z6gKcbbeNN6S2Q63x9ryv6cG0lSYPE+fyrQhJ3zFH7wOwZsO2CI+iUNpCjIce9Yn6tLxcfjSDBVEnWQzJOh03r9jAfrar1NLNC3h9AoUbVe53mgnhsEcLM8UTFEv2VuJ1wRDypElFEUEsfCZhYvZCSdnZ47DvLNEjFtqccy3k90R/5S8UT9BAO22kSyY3zPO2YxLZSB2S7SbBBu9SoSNjrXz3c4H8lGM26PlhK7jY5En9fGntzC1QxScoLT/89fR7IBXR4+q7ULALoTi7S1AAC0lEjBhDcVPOMbDNP1ojEBwAMOocdV9tW0S0Q/J4iKSZe+mAPykF4lutZP6CkAez2PlRluvORYW+5s8a2w+IFsC2PqOWm3+1ZITbZqdsh0U9YqPyn999JUPozBRDC0/B3dCgOVpcl2sPFxtMZvHlRgFaU7YJKLOSGSKLSw7wRyqMN52o1Pw5OysyiHdrvyLyA2naHKdtgYQeWS6OqcgYdhruBIhsQQfyhJsseUPk0gbervJfXLhVp6Mj1C6Zdiz/M0xbVCZxqCK2vXTcZhLXOt5hxXILawtkS7LMH1YL8tvxDQSQ5/FLWtVmb+8ZkuyF//ENOjrFfplRpjUA6m5KYTa3JL2gyC/4y0AeqP2fu6CeQx60D8ZekKwE+bwDdDSAeeIY2Qcc5vldN42N4qovdnN+XCbKUFpkkAjqdw/RFpG2FQxn3LZN+DumeeWX7xsVdzhJoBLOe2beTszPF/D1q4=
+  template:
+    metadata:
+      name: gitea-registry
+      namespace: atlas-landing
+    type: kubernetes.io/dockerconfigjson

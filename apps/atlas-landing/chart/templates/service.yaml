@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: atlas-landing
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: atlas-landing
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP

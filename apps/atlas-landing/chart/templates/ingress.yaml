@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atlas-landing
+  annotations:
+    cert-manager.io/cluster-issuer: atlas-ca
+    traefik.ingress.kubernetes.io/router.middlewares: atlas-landing-atlas-landing-ipallow@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+{{- range .Values.ingress.hosts }}
+    - host: {{ . }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: atlas-landing
+                port:
+                  number: {{ $.Values.service.port }}
+{{- end }}
+  tls:
+    - hosts:
+{{- range .Values.ingress.hosts }}
+        - {{ . }}
+{{- end }}
+      secretName: {{ .Values.ingress.tlsSecretName }}

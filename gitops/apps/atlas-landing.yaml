@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: atlas-landing
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: atlas-landing
+  source:
+    repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+    targetRevision: main
+    path: apps/atlas-landing/chart
+    helm:
+      releaseName: atlas-landing
+      valueFiles:
+        - values.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

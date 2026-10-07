@@ -1,0 +1,25 @@
+image:
+  repository: registry.atlas.lan/atlas-admin/atlas-landing
+  tag: v0.1.0
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: gitea-registry
+
+replicaCount: 1
+
+service:
+  port: 80
+
+ingress:
+  hosts:
+    - atlas.lan
+    - www.atlas.lan
+  tlsSecretName: atlas-landing-tls
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 16Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
