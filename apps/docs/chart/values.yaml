@@ -1,7 +1,7 @@
 image:
   repository: registry.atlas.lan/atlas-admin/docs
-  tag: unreleased-bootstrap
-  digest: ""
+  tag: sha-9e2d5f52e91ff5a8818cf065f462ca62a7bb0906-run-93-2
+  digest: sha256:7d9f423557641e13aeac2e9dff5ab7adcf82af62884ef9000c18adc15542dea2
   pullPolicy: IfNotPresent
 
 imagePullSecrets: gitea-registry
