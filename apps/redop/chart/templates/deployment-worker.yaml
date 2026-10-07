@@ -1,10 +1,10 @@
 {{- if .Values.worker.enabled }}
 {{- /*
-  Background worker (`python -m redops.worker`). The entrypoint exists but a
-  durable worker needs a configured connector transport; without one it fails
-  fast (WorkerConfigurationError), so it stays disabled by default to keep the
-  Argo CD health condition 9 requires. When a connector transport is configured,
-  set worker.enabled=true and worker.command to this module.
+  Background worker (`python -m redops.worker`). Owner decision 2026-10-06: the
+  interim fail-on-send connector transport lets the worker start and resume
+  durable workflows without a real connector, so it is enabled by default. A
+  step that would send raises loudly and its run stays persisted; nothing leaves
+  the box. A real connector replaces the transport without a caller change.
 */}}
 apiVersion: apps/v1
 kind: Deployment
@@ -46,6 +46,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgres.secretName }}
                   key: {{ .Values.postgres.databaseUrlKey }}
+            - name: REDOP_WORKER_TENANTS
+              value: {{ .Values.worker.tenants | quote }}
             - name: OPENROUTER_API_KEY
               valueFrom:
                 secretKeyRef:
