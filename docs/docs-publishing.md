@@ -232,12 +232,14 @@ claim that an image or live documentation deployment exists.
      docs/architecture/application-dependencies.md \
      docs/adr/0001-service-naming-and-reachability.md \
      docs/applications.md \
+     docs/assets/atlas-ca.crt \
      docs/atlas-dns.md \
      docs/c4-architecture.md \
      docs/gitops-platform.md \
      docs/kubernetes-control-plane.md \
      docs/pihole-dns.md \
      docs/pihole-runbook.md \
+     docs/runbooks/client-trust.md \
      docs/specs/docs-site-and-infrastructure-review.md
    git diff --cached --check
    git diff --cached --name-only
