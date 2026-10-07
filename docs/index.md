@@ -26,6 +26,7 @@ instructions, not continuously refreshed health reports.
 - [DNS architecture](atlas-dns.md)
 - [Dedicated Pi-hole design](pihole-dns.md)
 - [Pi-hole operational runbook](pihole-runbook.md)
+- [Client trust for the Atlas root certificate](runbooks/client-trust.md)
 - [ADR 0001: service naming and reachability](adr/0001-service-naming-and-reachability.md)
 
 ## Documentation delivery
