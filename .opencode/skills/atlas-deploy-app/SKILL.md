@@ -91,11 +91,22 @@ curl -ksS -X POST -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: appli
   "$API/user/repos" | jq -r '.full_name // .message'
 
 # CI needs: REGISTRY_USER, REGISTRY_TOKEN. The token grants push to the GitOps
-# repo too (promotion). API expects base64-encoded values.
-set_secret () { # $1=name $2=value
+# repo too (promotion).
+#
+# IMPORTANT — secret values are NOT additionally base64-encoded by the caller.
+# Despite older comments suggesting so, Gitea 1.27 stores the JSON `data` field
+# verbatim and injects it as the Actions secret as-is. If you base64-encode the
+# token before sending it, the runner receives the base64 string and every
+# `git clone http://oauth2:${REGISTRY_TOKEN}@...` fails with
+# "remote: Failed to authenticate user". Send the raw token. (This has bitten
+# more than once; see the troubleshooting note at the bottom.)
+#
+# After creating/updating secrets, RE-RUN failed runs — a run dispatched before
+# the secrets existed fails at checkout even though the secret is fine now.
+set_secret () { # $1=name $2=value  (value passed verbatim)
   curl -ksS -o /dev/null -w "$1 -> %{http_code}\n" -X PUT \
     -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
-    -d "$(printf '%s' "$2" | base64 -w0 | jq -R '{data:.}')" \
+    -d "$(jq -cn --arg d "$2" '{data:$d}')" \
     "$API/repos/$ORG/$APP/actions/secrets/$1"
 }
 set_secret REGISTRY_USER "$ORG"
@@ -321,3 +332,21 @@ To watch CI: `curl -ksS -H "Authorization: token $GITEA_TOKEN" "$API/repos/$ORG/
 - Chart names/resources must be unique per namespace.
 - If a build does not appear, check the runner: `kubectl -n gitea get pods`,
   logs on `gitea-actions-runner-0 -c runner`.
+
+## Troubleshooting
+
+- **Checkout fails with `remote: Failed to authenticate user`** — the
+  `REGISTRY_TOKEN` Actions secret almost certainly holds a double-encoded value
+  (the token was base64-encoded before being stored). Re-set the secret with the
+  raw token via `set_secret` above, then re-run the failed workflow from the
+  Gitea UI/API (`POST .../actions/runs/{id}/rerun`). Verify what the runner sees
+  by cloning in-cluster:
+  `kubectl -n gitea exec gitea-actions-runner-0 -c runner -- git clone -q "http://oauth2:<token>@gitea-http.gitea.svc.cluster.local:3000/<ORG>/<APP>.git" /tmp/t && rm -rf /tmp/t`.
+- **Run dispatched before secrets existed** — the run fails at checkout even
+  after the secrets are fixed; re-run it once the secrets verify.
+- **`container has runAsNonRoot and image will run as root`** — the upstream
+  image runs as root (e.g. `nginx` official image). Drop `runAsNonRoot: true`
+  for that container or use an image/user that matches the policy.
+- **`FailedToRetrieveImagePullSecret (gitea-registry)`** — the namespace pull
+  secret was not created before the pod started; the SealedSecret must be
+  applied to the target namespace (see Step 5) and Argo synced.

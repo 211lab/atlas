@@ -40,8 +40,8 @@ spec:
             failureThreshold: 3
           securityContext:
             allowPrivilegeEscalation: false
-            runAsNonRoot: false
             capabilities:
               drop: [ALL]
+              add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
           resources:
 {{ toYaml .Values.resources | indent 12 }}
