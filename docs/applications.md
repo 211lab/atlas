@@ -7,7 +7,7 @@ and [focused dependency diagrams](architecture/application-dependencies.md).
 Platform components (Gitea, Argo CD, cert-manager, sealed-secrets,
 monitoring) are covered in [GitOps platform](gitops-platform.md); this is the
 application catalog. For what is planned but not yet deployed, see the
-software install backlog (deferred to a separate publication).
+[software install backlog](backlog.md).
 
 Two app styles are in use:
 

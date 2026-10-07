@@ -17,7 +17,7 @@ instructions, not continuously refreshed health reports.
 
 - [GitOps platform](gitops-platform.md)
 - [Application catalog](applications.md)
-- Software install backlog (deferred to a separate publication)
+- [Software install backlog](backlog.md)
 - [Immich operations and recovery](runbooks/immich.md)
 - [Sealing secrets](sealing-secrets.md)
 
