@@ -38,7 +38,7 @@ This page is the **triage surface**; each item that is ready to build gets a
 | **n8n** | Workflow automation | Cluster-in-repo + CNPG | CNPG Postgres + `.n8n` PVC | `n8n.atlas.lan` | 1 | [spec](specs/n8n.md) |
 | **Paperclip** | Open-source AI agent orchestration ("a company of agents") | Cluster-in-repo (upstream image) | CNPG Postgres + `PAPERCLIP_HOME` PVC | `paperclip.atlas.lan` | 2 | [spec](specs/paperclip.md) |
 | **Nextcloud** | File sync and collaboration | Cluster-chart + CNPG | CNPG Postgres + Redis + data PVC (NFS RWX) | `cloud.atlas.lan` | 2 | [spec](specs/nextcloud.md) |
-| **Plandex** | Terminal AI coding agent (self-hosted server + CLI) | Cluster-in-repo + CNPG | CNPG Postgres | `plandex.atlas.lan` | 2 | [spec](specs/plandex.md) |
+| **Paperless-ngx** | Document management with OCR (scans, receipts, mail import) | Cluster-in-repo + CNPG | CNPG Postgres + valkey broker + media/consume PVCs (NFS) | `paperless.atlas.lan` | 2 | [spec](specs/paperless-ngx.md) |
 | **Frigate** | Network video recorder for cameras | Edge/hardware (deprioritized) | recordings PVC (large, NFS) | `frigate.atlas.lan` (TBD) | 3 | — |
 | **MagicMirror²** | Smart-mirror dashboard | Edge/hardware (deprioritized) | none (runs at the display) | n/a | 3 | — |
 
@@ -51,7 +51,7 @@ pods), stateful data uses `truenas-nfs`, and `*.atlas.lan` DNS is not yet live.
 | Wave | Apps | Rationale |
 | --- | --- | --- |
 | **1** | atlas-landing, code-server, n8n | Low-to-moderate footprint; landing page has no state; code-server and n8n unlock daily use. |
-| **2** | paperclip, nextcloud, plandex | Stateful and/or heavy; each adds a CNPG cluster; validate the memory budget after Wave 1. |
+| **2** | paperclip, nextcloud, paperless-ngx | Stateful and/or heavy; each adds a CNPG cluster; validate the memory budget after Wave 1. |
 | **3** | frigate, magicmirror | Hardware/edge-bound; tracked here but not cluster services today. |
 
 ### Wave 3 notes (edge/hardware, deprioritized)

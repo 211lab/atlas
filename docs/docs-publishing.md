@@ -248,7 +248,7 @@ claim that an image or live documentation deployment exists.
    include concurrent edits outside the release scope. Confirm the staged paths
    match this list and contain no unrelated changes or plaintext credentials.
    Leave `docs/backlog.md` and the six unrelated specs (`atlas-landing.md`,
-   `code-server.md`, `n8n.md`, `nextcloud.md`, `paperclip.md`, `plandex.md` under
+   `code-server.md`, `n8n.md`, `nextcloud.md`, `paperclip.md`, `paperless-ngx.md` under
    `docs/specs/`) untouched and unstaged for separate publication. Do not use
    `docs/**` or `docs/specs/**` staging globs. Verify a clean HEAD export with only
    the listed paths overlaid: run a strict MkDocs build, internal-link/search
