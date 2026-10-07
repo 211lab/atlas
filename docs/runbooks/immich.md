@@ -22,7 +22,7 @@ volume and `Database` resource for `vector`, `vchord`, `earthdistance`, and
 `immich-database-local-app` Secret. Reconcile the design through GitOps and wait
 for the new Cluster to be ready before relying on that Secret.
 
-## Approved namespace reset
+## Approved namespace reset (completed)
 
 The user explicitly approved a one-time reset of namespace `immich` for this
 rollout, including its library data. After the failed NFS Cluster and Database
@@ -51,6 +51,21 @@ PVC/PV. Once confirmed, delete only namespace `immich`, wait for its resources
 and bound volumes to be reclaimed, then let Argo CD recreate the desired
 resources from Git.
 
+## Completed rollout verification (2026-10-07)
+
+The explicitly approved `immich` namespace wipe is complete. The old Immich PVs
+are gone, and fresh library, database, backup, and ML-model PVCs are Bound.
+`immich-database-local` is healthy and primary, with its 10Gi PVC on
+`local-path`. The server, machine-learning, and valkey Deployments are all 1/1
+Ready; `immich-tls` is Ready. Argo CD root and Immich are `Synced/Healthy`, and
+both `https://immich.atlas.lan/` and `/api/server/ping` returned HTTP 200.
+
+At initial rollout validation, GitHub and Gitea `main` both pointed to
+`151202e`. A one-off backup Job succeeded; Restic listed snapshot `86133bb9` at
+`2026-10-07 00:03:32 UTC` (49.796 MiB, tagged `immich-postgres`). The Job was
+deleted afterward. This confirms one snapshot only; a restore rehearsal,
+long-term backup health, and NAS capacity validation have not been established.
+
 ## Normal backups
 
 The `immich-postgres-backup` CronJob is configured for 02:00 UTC daily. It runs
@@ -71,8 +86,9 @@ export RESTIC_REPOSITORY=/backup/restic
 restic snapshots --tag immich-postgres
 ```
 
-A configured schedule is not proof of a successful backup. Backup readiness is
-unverified until a backup Job succeeds and Restic can list its snapshot.
+The successful one-off run verifies one snapshot only; scheduled and long-term
+backup health and restore behavior remain unverified. PostgreSQL backups do not
+protect the media library, which needs an independent backup.
 
 ## Restore PostgreSQL
 

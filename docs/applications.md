@@ -60,9 +60,12 @@ PostgreSQL, because Immich v3 requires the `vchord` extension.
   uses a separate 50Gi `truenas-nfs` ReadWriteMany PVC.
 - **Backups:** the job is configured to create daily PostgreSQL logical dumps as
   Restic snapshots on a separate 100Gi `truenas-nfs` PVC, with 14 daily
-  snapshots retained. The Restic password is sealed. This describes the
-  configured design only; backup success has not been verified. Confirm a
-  successful run and list its snapshot before relying on recovery.
+  snapshots retained. The Restic password is sealed. The first one-off backup
+  Job succeeded and Restic listed snapshot `86133bb9` at `2026-10-07 00:03:32
+  UTC` (49.796 MiB, tag `immich-postgres`); the Job was deleted afterward. This
+  verifies one snapshot only, not scheduled or long-term backup health. The
+  PostgreSQL dump does not back up the media library; arrange an independent
+  library backup.
 - **Namespace:** `immich`; **Ingress:** `immich.atlas.lan` (TLS `atlas-ca`);
   valkey (Redis) and a 10Gi ML-model cache PVC run in-chart. The database dump
   does not back up the media library.

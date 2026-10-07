@@ -9,7 +9,7 @@
 
 ## Current deployed platform
 
-Verified 2026-10-04.
+Verified 2026-10-07.
 
 | Component | Chart | Version | Namespace | Access |
 | --- | --- | --- | --- | --- |
@@ -21,7 +21,10 @@ Verified 2026-10-04.
 | Argo CD | `argo/argo-cd` | 10.9.6 / v3.5.3 | argocd | https://argocd.atlas.lan |
 | kube-prometheus-stack | `prometheus-community/kube-prometheus-stack` | 88.3.0 / operator v0.93.0 | monitoring | Grafana `http://<node>:3000` |
 | redop | in-repo `apps/redop/chart` | 0.1.0 / v0.4.6 | redop | https://redop.atlas.lan |
-| immich | OCI `immich-charts/immich` + CloudNativePG | 0.13.2 / v3.2.0 (local-path DB recovery in progress) | immich | https://immich.atlas.lan |
+| immich | OCI `immich-charts/immich` + CloudNativePG | 0.13.2 / v3.2.0 | immich | https://immich.atlas.lan |
+
+The Argo CD root and Immich Applications are both `Synced/Healthy` after the
+clean Immich rollout.
 
 See [Applications](applications.md) for the app catalog (charts, namespaces,
 ingress, storage, secrets) and [`AGENTS.md`](../AGENTS.md) for the

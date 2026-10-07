@@ -138,7 +138,8 @@ kubectl -n <ns> get deploy,po,ingress,certificate
   is a **placeholder** that will not authenticate, and `pihole.atlas.lan` does
   not resolve in-cluster. ExternalDNS (`gitops/apps/external-dns.yaml`) will be
   Degraded until those are done — do not treat its records as authoritative.
-- **`feat/immich`** — Immich + CloudNativePG deployment (see
-  [Applications](docs/applications.md)).
+- **Immich backup/recovery follow-up** — verify ongoing backup health and backup
+  capacity, rehearse a PostgreSQL restore, and arrange an independent media
+  backup (see the [Immich runbook](docs/runbooks/immich.md)).
 - `apps/redop/chart/values.yaml` cites "ADR 0003", which does not exist; ADR
   numbering beyond 0001 is not established here.

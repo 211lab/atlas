@@ -5,7 +5,7 @@
 Deploy Immich from a clean namespace using a new CloudNativePG database on
 `local-path`, with PostgreSQL logical dumps protected by Restic on NFS.
 
-## Current evidence
+## Failure evidence (before reset)
 
 - `Cluster/immich-database` is `Cluster is unrecoverable and needs manual
   intervention`, `Initialized=True`, and `Ready=False`.
@@ -74,6 +74,21 @@ backup use separate TrueNAS NFS PVCs.
   separate `truenas-nfs` PVCs.
 - The Restic job backs up PostgreSQL only, not the media library.
 
+## Verification record (2026-10-07)
+
+- The initial rollout revision `151202e` was pushed to both remotes; Argo CD
+  root and Immich are `Synced/Healthy`. A subsequent Gitea CI image-promotion
+  commit is being preserved in the final main-history reconciliation.
+- The explicitly approved namespace wipe is complete. Old Immich PVs are gone;
+  fresh library, database, backup, and ML PVCs are Bound. CNPG
+  `immich-database-local` is healthy/primary with a 10Gi `local-path` PVC.
+- Immich server, machine-learning, and valkey Deployments are 1/1 Ready;
+  `immich-tls` is Ready. `https://immich.atlas.lan/` and
+  `https://immich.atlas.lan/api/server/ping` returned HTTP 200.
+- A one-off backup Job succeeded and was deleted afterward. Restic listed
+  snapshot `86133bb9` at `2026-10-07 00:03:32 UTC` (49.796 MiB, tag
+  `immich-postgres`). This verifies one snapshot only.
+
 ## Plan
 
 1. Remove the legacy NFS `Cluster` and `Database` manifests from the active
@@ -104,9 +119,11 @@ Before namespace deletion, the GitOps change can be reverted. After deletion,
 rollback cannot restore the old NFS media or database contents. Recovery would
 require independent photo backups and/or Restic snapshots from the new design.
 
-## Open questions
+## Remaining open checks
 
 - Validate TrueNAS capacity for the 100Gi backup PVC before relying on it for
   production.
+- Verify scheduled and long-term backup health; a single successful snapshot is
+  not evidence of ongoing backup success.
 - Rehearse a Restic restore and separately back up the media library before
   treating Immich as the only copy of photos.
