@@ -9,25 +9,41 @@
 
 ## Why
 
-Today `*.atlas.lan` is only resolvable *inside* the cluster (a CoreDNS
-`coredns-custom` entry) and by workstations that already have records. A
-dedicated Pi-hole gives one authoritative, network-wide resolver, and the
+The original design addressed names resolvable only *inside* the cluster
+(CoreDNS `coredns-custom`) and on preconfigured workstations. A dedicated
+Pi-hole gives one network-wide resolver, and the
 in-cluster automation writes an A record for every Ingress host as it appears —
 so `redop.atlas.lan`, `git.atlas.lan`, and anything deployed later resolve on
 every device that uses Pi-hole.
 
+**Observed 2026-10-07:** Pi-hole `.10` is running on Memex and ExternalDNS has
+Ready containers. Direct DNS answered docs with all four ingress node IPs.
+This supersedes the old `.107` unprovisioned proposal, but does not establish
+DHCP/tailnet adoption or authenticated record-write health. See the
+[review's evidence and gaps](infrastructure-review.md#ingress-dns-and-trust).
+The following provisioning steps are instructions, not actions performed by
+that review.
+
 ```mermaid
 flowchart LR
-    Dev[Developer deploys an Ingress] --> K8s[k3s API]
-    K8s --> ED[ExternalDNS / dnsweaver]
-    ED -->|A record| PH[Dedicated Pi-hole]
-    PH -->|DNS answers| LAN[All lab devices]
-    K8s --> Traefik[Traefik ingress<br/>node IPs 10.0.0.110-113]
-    LAN -->|HTTPS to the resolved IP| Traefik
+    Dev[Developer declares an Ingress] --> K8s[k3s API]
+    K8s --> ED[ExternalDNS]
+    ED -->|A record through webhook| PH[Dedicated Pi-hole]
 ```
 
-Until the dedicated device exists, the cluster already provides in-cluster
-resolution via CoreDNS; this document adds network-wide resolution.
+The registration view has four elements. Resolution and HTTP serving are a
+separate three-element path; DNS answers are addresses, not HTTP forwarding.
+
+```mermaid
+flowchart LR
+    LAN[Lab client using Pi-hole] -->|DNS query| PH[Dedicated Pi-hole]
+    PH -->|node addresses in DNS answers| LAN
+    LAN -->|HTTPS to resolved IP| T[Traefik ingress nodes]
+```
+
+CoreDNS remains the in-cluster resolution path; Pi-hole provides network-wide
+resolution for clients configured to use it. dnsweaver below is an alternative,
+not an additional observed controller.
 
 ## Part 1 — Provision the dedicated Pi-hole device
 
@@ -69,7 +85,7 @@ ansible-playbook ansible/playbooks/bootstrap-control.yaml -l dns -u root
 ansible all -i inventory.yml -l dns -m ping -o
 ```
 
-See [Proxmox Pi-hole LXC](../ansible/docs/proxmox-pihole-lxc.md) for the
+See repository runbook `ansible/docs/proxmox-pihole-lxc.md` for the
 container spec and the memory-lean profile.
 
 ### 1.3 Install and configure Pi-hole
@@ -149,9 +165,10 @@ the lab domain so it never touches other Pi-hole records.
 
 1. Set the Pi-hole address in `helm/values/external-dns.yaml`
    (`PIHOLE_SERVER`), e.g. `http://pihole.atlas.lan` or `http://10.0.0.10`.
-2. Seal the Pi-hole **app password** (Pi-hole v6 → Settings → API, or your
-   admin password) — the committed `gitops/sealed/pihole-api.yaml` is a
-   placeholder and must be replaced:
+2. Seal a valid Pi-hole **app password** (Pi-hole v6 → Settings → API, or your
+   admin password) for initial provisioning or credential rotation. Older
+   provisioning notes described a placeholder; the review did not read secret
+   contents or verify the current API credential:
 
    ```sh
    kubectl -n external-dns create secret generic pihole-api \
@@ -228,8 +245,9 @@ time — they will fight over records.
 - `policy: upsert-only` (paired with `registry: noop`) means ExternalDNS never
   prunes records. Deleting an Ingress leaves its A record behind; remove it
   manually or switch to a TXT-capable provider/registry.
-- The placeholder `gitops/sealed/pihole-api.yaml` **must** be re-sealed before
-  deploy; the committed value will not authenticate.
+- Initial provisioning requires a valid namespace-bound sealed API credential;
+  never rely on a placeholder. Current credential validity is not established
+  by the review's container-readiness/DNS observations.
 
 ## References
 

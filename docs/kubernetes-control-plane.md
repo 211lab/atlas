@@ -2,7 +2,12 @@
 
 > See [C4 architecture](c4-architecture.md) for the full system/container/component/deployment views.
 
-> Scope: Atlas is a four-host Proxmox cluster running a highly available K3s control plane. This is a tailored operational guide. It contains no passwords, private keys, node-join tokens, or kubeconfig credential data.
+> Scope: the four-member Atlas Proxmox cluster runs the highly available k3s control plane. The inventory also includes standalone Proxmox hosts Memex and Minsky. This is a tailored operational guide. It contains no passwords, private keys, node-join tokens, or kubeconfig credential data.
+
+For the **2026-10-07 live collection**, all inventoried hosts/guests, all 17
+namespaces and recovery gaps, see the [infrastructure review](infrastructure-review.md).
+The tables below retain the dated historical snapshot and operational examples;
+they are not a live-health cache. Control planes are schedulable and run apps.
 
 ## Current deployed infrastructure
 
@@ -12,7 +17,7 @@ Verified 2026-10-02 from the Atlas API VIP (`https://10.0.0.108:6443`).
 | --- | --- | --- |
 | K3s | Deployed | v1.36.3+k3s1: three embedded-etcd control-plane VMs and one worker, all `Ready` |
 | Kubernetes API | Deployed | kube-vip virtual IP: https://10.0.0.108:6443 |
-| Secret encryption | Deployed | Sealed Secrets encryption at rest |
+| Secret protection in Git | Deployed | Sealed Secrets ciphertext; this alone does not establish live etcd encryption-at-rest configuration |
 | Helm releases | Deployed | `atlas-monitoring` (monitoring), `csi-driver-nfs`, `traefik`, `traefik-crd` (kube-system) |
 | NFS CSI | Deployed | Driver installed; `truenas-nfs` StorageClass available for platform data (`local-path` remains the cluster default) |
 | TrueNAS NFS | Deployed | Dataset `data/atlas-k8s` on 10.0.10.26 exported at `/mnt/data/atlas-k8s` to `10.0.0.0/24,10.0.10.0/24`; consumed via the `truenas-nfs` StorageClass (see GitOps platform runbook). Existing `movies` export left untouched |

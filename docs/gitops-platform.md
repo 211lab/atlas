@@ -9,7 +9,11 @@
 
 ## Current deployed platform
 
-Verified 2026-10-07.
+The table retains the historical platform/runbook snapshot recorded as
+2026-10-07; it is not a complete current tenant inventory. See the
+[2026-10-07 read-only review](infrastructure-review.md) for dated live image
+tags, all 17 namespaces, 14 live Argo apps, Helm-managed components and gaps.
+In particular Redop live tags differ from this checkout; docs is declared only.
 
 | Component | Chart | Version | Namespace | Access |
 | --- | --- | --- | --- | --- |
@@ -27,7 +31,7 @@ The Argo CD root and Immich Applications are both `Synced/Healthy` after the
 clean Immich rollout.
 
 See [Applications](applications.md) for the app catalog (charts, namespaces,
-ingress, storage, secrets) and [`AGENTS.md`](../AGENTS.md) for the
+ingress, storage, secrets) and repository file `AGENTS.md` for the
 agent/contributor contract and known drift.
 
 Ansible-managed cluster access (SSH, API, Proxmox) is documented separately in
@@ -35,21 +39,22 @@ Ansible-managed cluster access (SSH, API, Proxmox) is documented separately in
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    D[Developer] -->|push or tag| G[Gitea application repository]
+    G --> R[Actions runner and dind]
+    R -->|build and push| I[Gitea OCI registry]
+    R -->|promotion commit| A[Atlas GitOps repository]
 ```
-developer push/tag ──▶ Gitea (git + OCI registry)
-                          │
-                          ▼
-              Gitea Actions (act_runner + dind)
-                 │  builds image, pushes to
-                 ▼
-        registry.atlas.lan/atlas-admin/<app>:<tag>
-                 │
-                 │  (same job) commits the new tag into the GitOps repo
-                 ▼
-        atlas GitOps repo ──push webhook──▶ Argo CD /api/webhook
-                 │                              (instant; 60s git poll fallback)
-                 ▼
-              Argo CD (app-of-apps) ── reconciles ──▶ k3s workloads
+
+The build view has five elements; reconciliation is a separate three-element
+view sharing the same GitOps repository. The declared Git polling fallback is
+60s. Webhook delivery was not exercised by the review.
+
+```mermaid
+flowchart LR
+    A[Atlas GitOps repository] -->|push webhook or poll| C[Argo CD]
+    C -->|app-of-apps reconcile| K[k3s workloads]
 ```
 
 There is **no registry poller**: Argo CD core does not watch container
@@ -312,8 +317,11 @@ kubectl -n argocd annotate application <name> argocd.argoproj.io/refresh=hard --
   git content is the source of truth and can be re-pushed to a fresh forge.
 - **Registry unreachable:** check `kubectl -n gitea get pods` and the Traefik
   ingress; confirm `registry.atlas.lan` resolves on the nodes.
-- **CA lost:** re-apply `gitops/manifests/issuers-atlas-ca.yaml`, re-copy the CA
-  to the nodes, reissue certs, and re-seal `atlas-ca` ConfigMaps.
+- **CA lost:** first establish whether the original `atlas-ca-tls` signing key
+  has a verified backup. Restoring the issuer declaration alone cannot recover
+  that key. An authorized CA replacement requires new client/node trust and
+  certificate reissuance. `atlas-ca` ConfigMaps distribute the public trust
+  anchor and are not re-sealed; CA and Sealed Secrets key recovery are separate.
 
 ## References
 

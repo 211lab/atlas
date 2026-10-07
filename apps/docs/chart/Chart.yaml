@@ -1,0 +1,6 @@
+apiVersion: v2
+name: docs
+description: Atlas MkDocs Material static documentation served by busybox httpd
+type: application
+version: 0.1.0
+appVersion: "unreleased-bootstrap"

@@ -1,0 +1,9 @@
+**
+!requirements-docs.txt
+!mkdocs.yml
+!docs/
+!docs/**
+!apps/
+!apps/docs/
+!apps/docs/Dockerfile
+!apps/docs/Dockerfile.dockerignore

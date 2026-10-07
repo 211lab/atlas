@@ -11,30 +11,49 @@ This page documents the two halves of Atlas DNS:
 
 Related: [Dedicated Pi-hole DNS](pihole-dns.md) (design),
 [Pi-hole DNS runbook](pihole-runbook.md) (provision → wire → verify),
-[Proxmox Pi-hole LXC](../ansible/docs/proxmox-pihole-lxc.md) (container).
+repository runbook `ansible/docs/proxmox-pihole-lxc.md` (container).
 
 ## Architecture
 
+Sources: [review D/K/N/H, 2026-10-07](infrastructure-review.md#evidence-and-scope).
+Pi-hole `.10` and ExternalDNS containers are observed running; wildcard answers
+were observed directly. Static record completeness, authenticated writes,
+in-cluster forwarding and tailnet/DHCP cutover are not proven by those checks.
+The focused diagrams distinguish declaration from live endpoint evidence.
+
 ```mermaid
 flowchart LR
-    subgraph Cluster[k3s cluster]
-        Ing[Ingress / Service objects] --> ED[ExternalDNS<br/>+ Pi-hole webhook]
-    end
+    Ing[Ingress and Service objects] --> ED[ExternalDNS]
+    ED --> W[Pi-hole webhook]
+    W -->|declared Pi-hole v6 API path| PH[Pi-hole LXC .10]
+```
 
-    ED -->|Pi-hole v6 API| PH[Pi-hole LXC<br/>10.0.0.10:53]
-    PH -->|wildcard *.atlas.lan| Tr[Traefik nodes<br/>10.0.0.110-113]
-    PH -->|static records| Hosts[Proxmox / TrueNAS / agent / VIP]
+Registration has four elements. Network resolution and ingress are a separate
+three-element view; static non-Kubernetes names remain the role's responsibility,
+not hidden workload nodes inside a grouping box.
 
-    Client[LAN + tailnet clients] -->|DNS 53| PH
-    Client -->|HTTPS| Tr
-    Kube[in-cluster clients] -->|CoreDNS coredns-custom| PH
+```mermaid
+flowchart LR
+    C[Client configured for lab DNS] -->|DNS 53| PH[Pi-hole .10]
+    PH -->|DNS answers| C
+    C -->|HTTPS to node addresses| T[Traefik .110-.113]
+```
+
+The declared in-cluster custom mappings are separate from client adoption of
+Pi-hole. This four-element view does not assert a live in-pod lookup test.
+
+```mermaid
+flowchart LR
+    C[In-cluster client] --> D[CoreDNS]
+    D -->|declared atlas.lan service mapping| T[Traefik Service]
+    D -->|declared Pi-hole host mapping| P[Pi-hole .10]
 ```
 
 ## Part 1 — Pi-hole on the network
 
 Pi-hole is an **unprivileged LXC on the `memex` Proxmox host** at
 **`10.0.0.10`**, provisioned by Ansible (see
-[Proxmox Pi-hole LXC](../ansible/docs/proxmox-pihole-lxc.md)). It is the single
+repository runbook `ansible/docs/proxmox-pihole-lxc.md`). It is the single
 authoritative resolver for `*.atlas.lan` and forwards everything else to
 `1.1.1.1` / `8.8.8.8`.
 
@@ -153,10 +172,14 @@ records are safe from pruning.
   `gitea-ssh-lb` are not annotated; the wildcard resolves their names to
   Traefik, but L7 routing needs an Ingress or IngressRoute.)
 
+<a id="part-3--tailnet-access"></a>
+
 ## Part 3 — Tailnet access
 
-The tailnet already reaches the lab: **`memex` advertises `10.0.0.0/8` as an
-approved subnet route** (its own tailnet address). Any tailnet device with
+The earlier runbook records **`memex` advertising `10.0.0.0/8` as an
+approved subnet route**. This review did not inspect tailnet policy or test a
+remote client; treat that as historical, not current reachability proof. Under
+that design, any tailnet device with
 `--accept-routes` can therefore reach Pi-hole (`10.0.0.10:53`) and the Traefik
 ingress nodes (`10.0.0.110-113`). **No Tailscale install is needed inside the
 container.**
@@ -196,7 +219,7 @@ key (`POST /api/v2/tailnet/{tailnet}/dns/nameservers` and
 Notes:
 
 - `*.atlas.lan` answers point at `10.0.0.110-113`; they are reachable because of
-  the `10.0.0.0/8` subnet route. If `memex` stops advertising it, tailnet clients
+   the declared `10.0.0.0/8` subnet route. If `memex` stops advertising it, tailnet clients
   lose both DNS and ingress reachability.
 - `*.atlas.lan` certificates come from the internal `atlas-ca`; tailnet clients
   must trust it (or use `-k`).

@@ -1,370 +1,375 @@
-# Atlas infrastructure — C4 architecture
+# Atlas infrastructure — architecture
 
-> Scope: a complete, current view of the Atlas home lab using the
-> [C4 model](https://c4model.com/) (Context → Container → Component →
-> Deployment), with supporting views for compute, storage, networking, TLS, and
-> the delivery pipeline. Diagrams are Mermaid and render on GitHub.
->
-> Verified 2026-10-02. Companion runbooks:
-> [Kubernetes control plane](kubernetes-control-plane.md) and
-> [GitOps platform](gitops-platform.md).
+This retains the C4 questions (context, deployable units, components and
+deployment) using supported Mermaid flowcharts/sequence diagrams. Every view
+has at most five elements, counting participants and visible containers.
+Repeated nodes across views refer to the same component. No grouping boxes
+hide additional entities.
+
+Sources: [infrastructure review D/H/G/K/N, collected 2026-10-07](infrastructure-review.md#evidence-and-scope).
+Declared relationships are not proof of successful live traffic. The older
+2026-10-02 snapshot is superseded by the review's explicit live evidence and
+gaps. Companion runbooks: [control plane](kubernetes-control-plane.md),
+[GitOps](gitops-platform.md), [DNS](atlas-dns.md),
+[applications](applications.md).
 
 ## How to read this document
 
-| Level | Question it answers | Diagram |
-| --- | --- | --- |
-| 1 – System Context | Who uses Atlas and what external systems does it depend on? | [`C4Context`](#level-1--system-context) |
-| 2 – Container | What are the deployable/running units and how do they talk? | [`C4Container`](#level-2--container) |
-| 3 – Component | What is inside the delivery control plane? | [`C4Component`](#level-3--component-delivery-control-plane) |
-| 3 – Component | What is inside the network/ingress/TLS layer? | [`C4Component`](#level-3--component-networking-ingress-dns-and-tls) |
-| 3 – Component | What is inside the storage layer? | [`C4Component`](#level-3--component-storage) |
-| Deployment | Which physical host / VM runs what? | [`C4Deployment`](#deployment-view) |
+| Question | Focused views |
+| --- | --- |
+| Who uses Atlas? | [System context](#level-1--system-context) |
+| What runs and talks? | [Containers](#level-2--container) and [app dependencies](architecture/application-dependencies.md) |
+| What controls delivery? | [Delivery components](#level-3--component-delivery-control-plane) |
+| How do requests resolve and get TLS? | [Networking](#level-3--component-networking-ingress-dns-and-tls) and [requests](#request-flow) |
+| Where does data persist? | [Storage](#level-3--component-storage) and [provisioning](#storage-provisioning) |
+| Which host runs each guest? | [Deployment](#deployment-view), [placement](architecture/placement.md) and review inventory |
 
-Supporting views cover [compute](#compute-view), the
-[CI/CD and promotion flow](#delivery-flow), the
-[request/DNS/TLS flow](#request-flow), and
-[storage provisioning](#storage-provisioning).
+<a id="level-1--system-context"></a>
 
 ## Level 1 — System Context
 
-Atlas is a self-hosted Kubernetes platform. Operators and developers interact
-with it; it depends on TrueNAS for persistent storage, Pi-hole for internal DNS,
-and mirrors its source of truth to GitHub.
-
-```mermaid
-C4Context
-    title Level 1 — System Context: Atlas home lab platform
-
-    Person(admin, "Lab Administrator", "Operates Proxmox hosts, k3s, Argo CD and the storage layer")
-    Person(dev, "Developer", "Pushes application code and tags to the forge")
-    Person(grafanaUser, "Observer", "Views Grafana dashboards")
-
-    System(atlas, "Atlas Platform", "Proxmox VE cluster running a highly-available k3s control plane with a self-hosted Gitea forge, container registry, CI runners and an Argo CD GitOps control plane")
-
-    System_Ext(truenas, "TrueNAS", "ZFS storage appliance exporting NFS datasets for persistent volumes")
-    System_Ext(pihole, "Pi-hole", "LAN DNS; resolves *.lan (and *.atlas.lan) for workstations")
-    System_Ext(github, "GitHub (211lab/atlas)", "Upstream mirror/source of the platform repository")
-    System_Ext(workstation, "Operator workstation (Titan / WSL)", "kubectl, helm, git, kubeseal clients")
-
-    Rel(admin, atlas, "Administers over SSH, kubectl and Argo CD")
-    Rel(dev, atlas, "Pushes commits/tags, watches CI and deployments")
-    Rel(grafanaUser, atlas, "Views metrics and dashboards")
-    Rel(workstation, atlas, "kubectl / helm / git over the LAN")
-    Rel(atlas, truenas, "Provisions and mounts NFS volumes", "NFSv4.1")
-    Rel(atlas, pihole, "Relies on LAN DNS for human hostnames")
-    Rel(atlas, github, "Mirrors the GitOps repo to", "git/HTTPS+SSH")
-    Rel(pihole, workstation, "Resolves *.lan", "DNS")
-    Rel(admin, truenas, "Configures datasets and exports", "HTTPS API")
-```
-
-## Level 2 — Container
-
-The platform is a Proxmox VE cluster whose four core hosts run k3s VMs; k3s runs
-the platform containers (Traefik ingress, Gitea + registry, CI runner, Argo CD,
-cert-manager, Sealed Secrets, monitoring). TrueNAS provides NFS-backed PVCs.
-
-```mermaid
-C4Container
-    title Level 2 — Container: Atlas platform
-
-    Person(admin, "Lab Administrator")
-    Person(dev, "Developer")
-
-    System_Boundary(pve, "Proxmox VE cluster (10.0.0.0/24)") {
-        Container_Boundary(k3s, "k3s cluster v1.36.3+k3s1") {
-            Container(vip, "kube-vip", "DaemonSet", "Leads the API VIP 10.0.0.108:6443")
-            Container(coredns, "CoreDNS", "k3s add-on", "Cluster DNS + atlas.lan host records")
-            Container(traefik, "Traefik", "Ingress/LB v3.7.1", "Terminates HTTP/HTTPS on node IPs :80/:443")
-            Container(gitea, "Gitea", "Gitea 1.27.0", "Git forge + built-in OCI registry (git.atlas.lan, registry.atlas.lan)")
-            ContainerDb(giteapg, "PostgreSQL", "Bitnami 17", "Gitea database")
-            Container(runner, "Gitea Actions runner", "act_runner 2.0.1 + dind", "Builds and pushes images")
-            Container(argocd, "Argo CD", "v3.5.3", "GitOps app-of-apps controller")
-            Container(certmgr, "cert-manager", "v1.21.2", "Issues certs from atlas-ca")
-            Container(sealed, "Sealed Secrets", "controller 0.40.0", "Decrypts committed secrets")
-            Container(prom, "kube-prometheus-stack", "88.3.0", "Prometheus + Grafana + exporters")
-        }
-        ContainerDb(pveNodeExporter, "PVE node-exporter", "systemd service", "Physical-host metrics scraped by Prometheus")
-    }
-
-    System_Ext(truenas, "TrueNAS 10.0.10.26", "NFSv4.1 server; dataset data/atlas-k8s")
-    System_Ext(github, "GitHub 211lab/atlas", "Upstream mirror")
-    System_Ext(pihole, "Pi-hole", "LAN DNS")
-
-    Rel(admin, traefik, "HTTPS to *.atlas.lan")
-    Rel(dev, traefik, "Pushes to git.atlas.lan / sees argocd.atlas.lan")
-    Rel(traefik, gitea, "Routes git/registry hosts")
-    Rel(traefik, argocd, "Routes argocd.atlas.lan")
-    Rel(gitea, giteapg, "Reads/writes", "TCP 5432")
-    Rel(runner, gitea, "Registers, pulls jobs, pushes packages", "HTTP + internal registry")
-    Rel(argocd, gitea, "Reads GitOps repo", "HTTPS internal")
-    Rel(gitea, argocd, "Sends push webhook", "HTTP /api/webhook")
-    Rel(certmgr, traefik, "Provides TLS secrets")
-    Rel(gitea, truenas, "Persists data via PVC", "NFSv4.1")
-    Rel(giteapg, truenas, "Persists data via PVC", "NFSv4.1")
-    Rel(prom, pveNodeExporter, "Scrapes")
-    Rel(argocd, github, "Optional mirror", "git")
-    Rel(pihole, admin, "Resolves *.lan", "DNS")
-```
-
-## Level 3 — Component: delivery control plane
-
-Inside the GitOps/delivery control plane: Argo CD's components, the forge, the
-CI runner, and the security primitives.
-
-```mermaid
-C4Component
-    title Level 3 — Component: GitOps delivery control plane
-
-    Component(root, "root Application", "Argo CD Application", "App-of-apps; reconciles gitops/apps/ from the forge")
-    Component(appset, "ApplicationSet controller", "Argo CD", "Generates Applications from generators (available)")
-    Component(controller, "Application controller", "Argo CD", "Compares desired vs live state, syncs with selfHeal/prune")
-    Component(repoServer, "Repo server", "Argo CD", "Renders Helm/Kustomize from git")
-    Component(apiServer, "API server", "Argo CD", "UI/API; receives Gitea push webhooks at /api/webhook")
-    Component(redis, "Redis", "Argo CD", "Cache")
-    Component(project, "platform AppProject", "Argo CD", "RBAC + source/destination allowlist")
-
-    Component(gitea, "Gitea", "forge", "Repositories: atlas (GitOps) and application source")
-    Component(registry, "Gitea OCI registry", "registry", "Stores built images")
-    Component(runner, "act_runner", "CI", "Runs .gitea/workflows/* jobs (docker via dind)")
-    Component(sealed, "sealed-secrets-controller", "security", "Unseals committed SealedSecrets")
-    Component(certmgr, "cert-manager", "security", "atlas-ca ClusterIssuer -> ingress TLS")
-    Component(apps, "gitops/apps/*", "manifests", "One Application per platform component")
-    Component(values, "helm/values/*", "values", "Pinned chart values referenced via multi-source")
-
-    Rel(runner, gitea, "Checkout + job API", "HTTP internal")
-    Rel(runner, registry, "docker push", "HTTPS + atlas-ca")
-    Rel(gitea, apiServer, "push webhook", "HTTP /api/webhook")
-    Rel(root, apps, "reads")
-    Rel(apps, repoServer, "renders")
-    Rel(repoServer, gitea, "clones", "HTTPS internal")
-    Rel(values, repoServer, "Helm values ($values ref)")
-    Rel(repoServer, controller, "manifests")
-    Rel(controller, redis, "cache")
-    Rel(apiServer, controller, "triggers refresh")
-    Rel(project, controller, "guardrails")
-    Rel(sealed, apps, "provides Secrets")
-    Rel(certmgr, apps, "provides TLS Secrets")
-```
-
-## Level 3 — Component: networking, ingress, DNS and TLS
-
-How a request from a workstation reaches a workload, and how names resolve and
-certs are issued.
-
-```mermaid
-C4Component
-    title Level 3 — Component: networking, ingress, DNS and TLS
-
-    Component(ws, "Workstation client", "curl/browser/kubectl", "e.g. Titan/WSL 10.0.10.166")
-    Component(pihole, "Pi-hole", "LAN DNS", "Authoritative for *.lan / *.atlas.lan")
-    Component(vip, "kube-vip", "VIP", "API 10.0.0.108:6443")
-    Component(svclb, "klipper svclb", "k3s ServiceLB", "Publishes LoadBalancer IPs on node IPs")
-    Component(traefik, "Traefik", "Ingress controller", "Entrypoints web :80 / websecure :443")
-    Component(coredns, "CoreDNS", "Cluster DNS", "atlas.lan -> Traefik ClusterIP (coredns-custom)")
-    Component(certmgr, "cert-manager", "TLS", "atlas-ca ClusterIssuer")
-    Component(ca, "atlas-ca", "CA", "Self-signed root -> per-host certs")
-    Component(ing, "Ingress resources", "K8s", "git/registry/argocd/redop .atlas.lan")
-
-    Rel(ws, pihole, "DNS query *.atlas.lan", "UDP/TCP 53")
-    Rel(ws, svclb, "HTTPS 443", "TLS")
-    Rel(svclb, traefik, "forwards")
-    Rel(traefik, ing, "matches host/path")
-    Rel(ing, certmgr, "requests cert", "cert-manager.io/cluster-issuer")
-    Rel(certmgr, ca, "signs with")
-    Rel(ca, traefik, "TLS secret mounted")
-    Rel(coredns, traefik, "resolves in-cluster *.atlas.lan -> ClusterIP")
-    Rel(ws, vip, "kubectl API", "TLS 6443")
-```
-
-## Level 3 — Component: storage
-
-> Network-wide discovery: a dedicated Pi-hole plus ExternalDNS writes A records
-> for Ingress hosts so every LAN device resolves `*.atlas.lan` — see
-> [Dedicated Pi-hole DNS](pihole-dns.md).
-
-Persistent volumes come from TrueNAS over NFS via the `nfs.csi.k8s.io` driver;
-`local-path` remains the cluster default for non-platform workloads.
-
-```mermaid
-C4Component
-    title Level 3 — Component: storage
-
-    Component(sc, "StorageClass truenas-nfs", "nfs.csi.k8s.io", "NFSv4.1, subDir per PVC, Immediate")
-    Component(lp, "StorageClass local-path (default)", "rancher.io/local-path", "Node-local; default for other workloads")
-    Component(ctrl, "csi-driver-nfs controller", "csi-driver-nfs 4.13.4", "Provisions subdirectories")
-    Component(node, "csi-nfs-node DaemonSet", "csi-driver-nfs 4.13.4", "Mounts NFS on nodes")
-    ComponentDb(giteaPVC, "gitea-shared-storage", "PVC 10Gi", "Gitea repositories, LFS, packages")
-    ComponentDb(pgPVC, "data-gitea-postgresql-0", "PVC 8Gi", "Gitea database")
-    ComponentDb(runnerPVC, "data-runner-...-0", "PVC 1Gi", "Runner state")
-    System_Ext(truenas, "TrueNAS", "pool 'data', dataset data/atlas-k8s, export /mnt/data/atlas-k8s")
-
-    Rel(giteaPVC, sc, "requests")
-    Rel(pgPVC, sc, "requests")
-    Rel(runnerPVC, sc, "requests")
-    Rel(sc, ctrl, "provision")
-    Rel(ctrl, truenas, "mkdir + export", "NFS")
-    Rel(node, truenas, "mount", "NFSv4.1")
-```
-
-## Deployment view
-
-Physical and logical placement: Proxmox hosts → k3s VMs → pods, plus TrueNAS.
-
-```mermaid
-C4Deployment
-    title Deployment — physical and logical placement
-
-    Deployment_Node(pve, "Proxmox VE cluster", "6 bare-metal hosts, 10.0.0.101-106") {
-        Deployment_Node(turing, "Turing 10.0.0.101", "PVE host") {
-            Deployment_Node(cp1, "atlas-k3s-cp1 / VM 201", "Ubuntu 24.04, 2 vCPU, 3.8 GiB, 10.0.0.110") {
-                Container(k3s1, "k3s server + etcd + kube-vip", "control plane")
-            }
-        }
-        Deployment_Node(hopper, "Hopper 10.0.0.102", "PVE host") {
-            Deployment_Node(cp2, "atlas-k3s-cp2 / VM 202", "Ubuntu 24.04, 2 vCPU, 3.8 GiB, 10.0.0.111") {
-                Container(k3s2, "k3s server + etcd + kube-vip", "control plane")
-            }
-        }
-        Deployment_Node(lovelace, "Lovelace 10.0.0.103", "PVE host") {
-            Deployment_Node(cp3, "atlas-k3s-cp3 / VM 203", "Ubuntu 24.04, 2 vCPU, 3.8 GiB, 10.0.0.112") {
-                Container(k3s3, "k3s server + etcd + kube-vip", "control plane")
-            }
-        }
-        Deployment_Node(babbage, "Babbage 10.0.0.104", "PVE host") {
-            Deployment_Node(wk, "atlas-k3s-worker1 / VM 204", "Ubuntu 24.04, 2 vCPU, 5.7 GiB, 10.0.0.113") {
-                Container(pods, "Platform + app pods", "Gitea, Argo CD, runner, monitoring, Redop")
-            }
-        }
-        Deployment_Node(extra, "Memex 10.0.0.105 / Minsky 10.0.0.106", "Additional PVE/Ubuntu hosts", "Non-k3s lab services")
-    }
-
-    Deployment_Node(tn, "TrueNAS (10.0.10.26)", "Storage appliance") {
-        Deployment_Node(pool, "ZFS pool 'data'", "datasets: atlas-k8s, movies, pictures, series") {
-            ContainerDb(export, "NFS export", "/mnt/data/atlas-k8s")
-        }
-    }
-
-    Deployment_Node(ws, "Operator workstation", "Titan / WSL 10.0.10.166") {
-        Container(cli, "kubectl / helm / git / kubeseal", "admin tooling")
-    }
-
-    Rel(cli, k3s1, "kubectl via VIP 10.0.0.108:6443")
-    Rel(pods, export, "NFSv4.1 PVCs")
-    Rel(k3s1, k3s2, "etcd peer")
-    Rel(k3s2, k3s3, "etcd peer")
-```
-
-## Compute view
-
-| Layer | Name | Address | Role | Capacity |
-| --- | --- | --- | --- | --- |
-| PVE host | Turing | 10.0.0.101 | Proxmox; hosts VM 201 | — |
-| PVE host | Hopper | 10.0.0.102 | Proxmox; hosts VM 202 | — |
-| PVE host | Lovelace | 10.0.0.103 | Proxmox; hosts VM 203 | — |
-| PVE host | Babbage | 10.0.0.104 | Proxmox; hosts VM 204 | — |
-| PVE host | Memex | 10.0.0.105 | Additional host (standalone) | — |
-| PVE host | Minsky | 10.0.0.106 | Additional Ubuntu host | — |
-| k3s node | atlas-k3s-cp1 | 10.0.0.110 (VM 201) | control-plane, embedded etcd | 2 vCPU / 3.8 GiB |
-| k3s node | atlas-k3s-cp2 | 10.0.0.111 (VM 202) | control-plane, embedded etcd | 2 vCPU / 3.8 GiB |
-| k3s node | atlas-k3s-cp3 | 10.0.0.112 (VM 203) | control-plane, embedded etcd | 2 vCPU / 3.8 GiB |
-| k3s node | atlas-k3s-worker1 | 10.0.0.113 (VM 204) | worker | 2 vCPU / 5.7 GiB |
-| API VIP | kube-vip | 10.0.0.108:6443 | HA Kubernetes API | — |
-
-Totals: **8 vCPU / ~17.7 GiB** across the k3s layer; typical steady-state use
-~25–35 % memory. Because only one node is a worker, platform stateful workloads
-are scheduled there unless they use NFS (which is node-independent).
-
-## Request flow
+Atlas is a self-hosted Kubernetes platform for operators, developers and
+observers. Administrative access crosses separate host, guest and Kubernetes
+trust boundaries; application usage does not grant administrative credentials.
 
 ```mermaid
 flowchart LR
-    A[Browser / curl / kubectl] --> B{Pi-hole DNS}
-    B -- *.atlas.lan --> C[Node IP :443 / :6443]
-    C -- :6443 --> V[kube-vip VIP 10.0.0.108]
-    V --> API[k3s API server]
-    C -- :443 --> S[svclb -> Traefik]
-    S --> T{Traefik routes by Host}
-    T -- git.atlas.lan --> G[Gitea]
-    T -- registry.atlas.lan --> R[Gitea registry]
-    T -- argocd.atlas.lan --> AR[Argo CD server]
-    T -- redop.atlas.lan --> D[Redop]
-    G & R & AR & D --> TLS[(atlas-ca TLS secret)]
+    A["Lab administrator"] -->|SSH and API| P["Atlas platform"]
+    D["Developer"] -->|forge push and CI| P
+    O["Observer"] -->|Grafana dashboards| P
 ```
+
+Storage and naming are external dependencies, not additional quorum nodes.
+Pi-hole is an LXC on Memex; TrueNAS is a VM on the same host. GitHub is the
+declared upstream mirror, not the live Argo source of truth.
+
+```mermaid
+flowchart LR
+    P["Atlas platform"] -->|NFS volumes| N["TrueNAS"]
+    P -->|network DNS dependency| D["Pi-hole"]
+    P -.->|declared repository mirror| G["GitHub 211lab/atlas"]
+```
+
+<a id="level-2--container"></a>
+
+## Level 2 — Container
+
+The core four-host PVE cluster runs three k3s servers and one agent. Memex and
+Minsky are standalone PVE hosts; there is no six-host Corosync cluster.
+Platform containers include ingress, DNS, forge/registry/CI, Argo, certificate
+and secret controllers, monitoring and CNPG. The review enumerates all 17
+namespaces, including non-platform applications and empty system/legacy ones.
+
+### Forge and build units
+
+```mermaid
+flowchart LR
+    T["Traefik"] -->|git and registry hosts| G["Gitea 1.27.0"]
+    G -->|database| P["PostgreSQL 17.6"]
+    R["Actions runner 2.0.1"] -->|jobs and image push| G
+```
+
+Gitea includes the OCI registry; it is not a separate registry Deployment.
+Runner uses Docker-in-Docker `29.5.2`; CI job images such as `docker:25-git`
+are workflow declarations, not the runner version. Forge data, database and
+runner state have separate NFS PVCs (10/8/1 GiB). Gitea's declared `Recreate`
+strategy avoids simultaneous writers and LevelDB lock conflicts.
+
+### Monitoring units
+
+```mermaid
+flowchart LR
+    G["Grafana 13.1.3"] --> P["Prometheus 3.13.2"]
+    P --> K["kube-state-metrics 2.19.1"]
+    P --> N["k3s node-exporter 1.12.1"]
+```
+
+```mermaid
+flowchart LR
+    O["Prometheus operator 0.93.0"] -->|manages| P["Prometheus"]
+    P -->|declared scrape targets| E["PVE host node-exporter"]
+```
+
+PVE exporter services were active on the four cluster hosts, inactive on Memex
+and Minsky. Scrape success/alerts were not verified. kube-prometheus-stack
+88.3.0 is a k3s HelmChart, not an Argo child. Grafana's sidecars load declared
+dashboards/datasources; both Grafana and Prometheus storage are ephemeral.
+
+<a id="level-3--component-delivery-control-plane"></a>
+
+## Level 3 — Component: delivery control plane
+
+### Desired-state rendering
+
+```mermaid
+flowchart LR
+    R["root Application"] --> A["gitops/apps declarations"]
+    A --> S["Argo repo-server"]
+    V["helm/values pins"] --> S
+    S --> C["Application controller"]
+```
+
+root reconciles child Application declarations. Repo-server clones the forge
+repository and renders Helm/directory sources; upstream chart versions are
+pinned, and `$values` references Git. In-house charts are under `apps/`.
+Controller compares and reconciles desired/live resources with the declared
+automated prune/self-heal policy. ApplicationSet controller is available but
+its presence does not prove that any Applications are generated by it.
+
+### Refresh, cache and policy
+
+```mermaid
+flowchart LR
+    G["Gitea"] -->|push webhook| S["Argo server"]
+    S -->|refresh| C["Application controller"]
+    C --> R["Redis cache"]
+    P["platform AppProject"] -->|source and destination policy| C
+```
+
+Argo `v3.5.3` has server/UI/API, repo-server, application controller,
+ApplicationSet controller and Redis `8.6.4-alpine`. The declared Gogs webhook
+uses `/api/webhook`, HMAC verification and Gitea's outbound private-host
+allowlist; Git polling is the declared 60s fallback. This review did not send
+webhooks or inspect their shared secret. Policy/RBAC effectiveness was not
+audited beyond observed Application project membership.
+
+### Secret and certificate controllers
+
+```mermaid
+flowchart LR
+    G["Committed SealedSecret"] --> S["Sealed Secrets controller 0.40.0"]
+    S -->|unseals| K["Namespaced Secret"]
+```
+
+Sealed Secrets protects committed ciphertext; the controller's decryption key
+needs an independently verified backup. It is not by itself proof of etcd
+encryption at rest. Certificate issuance is a separate trust path below.
+
+<a id="level-3--component-networking-ingress-dns-and-tls"></a>
+
+## Level 3 — Component: networking, ingress, DNS and TLS
+
+### LAN discovery
+
+```mermaid
+flowchart LR
+    C["Workstation client"] -->|DNS query| P["Pi-hole .10"]
+    P -->|atlas.lan answers| T["Traefik node addresses .110-.113"]
+    C -->|HTTPS 443| T
+```
+
+DNS returns destination addresses; Pi-hole does not proxy HTTP. The live docs
+name resolved but had no live route. See [DNS architecture](atlas-dns.md) for
+wildcards, static records, ExternalDNS upsert-only semantics and unverified
+DHCP/tailnet adoption. `.local` mDNS is not the chosen service namespace.
+
+### In-cluster discovery
+
+```mermaid
+flowchart LR
+    C["In-cluster client"] --> D["CoreDNS 1.14.6"]
+    D -->|declared custom atlas.lan mapping| T["Traefik Service"]
+    D -->|declared Pi-hole host mapping| P["Pi-hole .10"]
+```
+
+CoreDNS custom routing is declared in git; the review did not independently
+query live ConfigMap contents or execute a lookup inside a pod. It is distinct
+from the network-wide Pi-hole resolver path.
+
+### TLS issuance
+
+```mermaid
+flowchart LR
+    I["Ingress"] -->|issuer annotation| C["cert-manager 1.21.2"]
+    C --> A["atlas-ca ClusterIssuer"]
+    A -->|signs| S["Ingress TLS Secret"]
+    S --> T["Traefik"]
+```
+
+`atlas-selfsigned-bootstrap` initializes the root CA Certificate; `atlas-ca`
+signs leaf certificates using the `atlas-ca-tls` Secret in cert-manager.
+Issuer and Certificate Ready status was observed, not private-key contents.
+`atlas-ca` ConfigMaps described by runbooks distribute the public trust anchor;
+they are not SealedSecrets and do not contain the private signing key. Node
+registry CA trust and per-namespace image-pull credentials remain separate
+dependencies. Internal TLS is not public PKI or user authentication.
+
+<a id="level-3--component-storage"></a>
+
+## Level 3 — Component: storage
+
+### NFS consumers
+
+```mermaid
+flowchart LR
+    G["Gitea shared PVC"] --> S["truenas-nfs StorageClass"]
+    P["Gitea PostgreSQL PVC"] --> S
+    R["Runner state PVC"] --> S
+    S --> N["TrueNAS .26"]
+```
+
+The view shows forge consumers only. [Application dependency views](architecture/application-dependencies.md)
+cover Redop, Home Assistant and Immich instead of putting their individual
+claims into a large box. The review lists every PVC, size, access mode and
+placement. NFS server capacity and pool health were inaccessible.
+
+### NFS machinery
+
+```mermaid
+flowchart LR
+    S["truenas-nfs StorageClass"] --> C["NFS CSI controller"]
+    C -->|provisions directories| T["TrueNAS export"]
+    N["NFS CSI node plugin"] -->|mount NFSv4.1| T
+```
+
+NFS CSI `4.13.4` uses export `/mnt/data/atlas-k8s` and a per-namespace/PVC
+subdirectory. Class permits expansion and binds Immediately. Driver provisions
+directories under an existing export; it does not create the TrueNAS appliance,
+ZFS pool or export. Historical export settings (`mapall root`, permitted lab
+networks, security SYS) were not independently re-audited.
+
+### Local database exception
+
+```mermaid
+flowchart LR
+    D["Immich PostgreSQL primary"] --> P["local-path PVC"]
+    P -->|node affinity| C["cp1"]
+```
+
+`local-path` is default, WaitForFirstConsumer, node-local. Immich DB is an
+explicit exception to NFS-backed platform persistence; recovery depends on
+off-node dumps. Both classes and all observed PVs have Delete reclaim policy.
+PVC class is immutable; recreation is destructive, not an authorized review
+action. Bound storage does not prove backup durability.
+
+## Deployment view
+
+The [physical placement page](architecture/placement.md) splits all six hosts
+and every guest into focused views. Turing/Hopper/Lovelace host VMs 201–203;
+Babbage hosts VM 204; Memex hosts TrueNAS, Pi-hole, stopped HomeOS and a
+template; Minsky hosts agent. The four core PVE hosts have one k3s VM each.
+There is no claim of VM HA migration: observed HA-resource lists on Turing and
+Memex were empty.
+
+## Compute view
+
+| Layer | Name / address | Role / configured capacity |
+| --- | --- | --- |
+| PVE cluster | Turing `.101`, Hopper `.102`, Lovelace `.103`, Babbage `.104` | Four quorum voters; 4 CPUs/~15.5 GiB usable each |
+| Standalone PVE | Memex `.105`, Minsky `.106` | NAS/DNS versus agent; separate failure domains, not cluster members |
+| k3s server | cp1/2/3 `.110/.111/.112` | Each 2 vCPU/4 GiB configured, ~3.76 GiB API capacity; embedded etcd |
+| k3s agent | worker1 `.113` | 2 vCPU/6 GiB configured, ~5.72 GiB API capacity |
+| API VIP | `.108:6443` | kube-vip, not an additional server |
+
+No node is tainted: control planes carry most application pods. NFS removes
+node affinity for those volumes, not application single-writer constraints.
+At collection control-plane memory was ~68–69%, worker ~41%; worker root was
+84% used. Do not use the historical 25–35% estimate for capacity planning.
+
+## Request flow
+
+### Kubernetes API
+
+```mermaid
+flowchart LR
+    C["kubectl client"] -->|TLS 6443| V["kube-vip .108"]
+    V --> S["k3s API server"]
+```
+
+### Application HTTPS
+
+```mermaid
+flowchart LR
+    C["Browser"] -->|resolved node IP 443| L["k3s ServiceLB"]
+    L --> T["Traefik"]
+    T -->|Host and path| I["Ingress backend Service"]
+```
+
+ServiceLB publishes Traefik on every node IP; one observed Traefik pod runs on
+cp1. Concrete backend hosts, ports, TLS certs and Redop/3f-app path splits are
+listed in the [review](infrastructure-review.md#ingress-dns-and-trust).
+Gitea SSH 2222 and Grafana HTTP 3000 are separate LoadBalancer paths, not HTTPS
+Ingress routes.
 
 ## Delivery flow
 
+### Build and promotion
+
 ```mermaid
-flowchart TD
-    Dev[Developer] -->|git push / tag v*| G[Gitea: application repo]
-    G -->|Actions job| Runner[act_runner + dind]
-    Runner -->|docker build/push| Reg[registry.atlas.lan/atlas-admin/app]
-    Runner -->|commits tag| Repo[Gitea: atlas GitOps repo]
-    Repo -->|push webhook| Argo[Argo CD /api/webhook]
-    Argo -->|app-of-apps sync| K8s[Deployments / Helm releases]
-    K8s --> App[application running new tag]
-    Repo -. mirror .-> Hub[GitHub 211lab/atlas]
+flowchart LR
+    D["Developer"] -->|push or release| G["Application forge repository"]
+    G --> R["Actions runner"]
+    R -->|image push| I["Gitea OCI registry"]
+    R -->|promotion commit| A["Atlas GitOps repository"]
 ```
+
+### Reconciliation
+
+```mermaid
+flowchart LR
+    A["Atlas GitOps repository"] -->|webhook or Git poll| C["Argo CD"]
+    C -->|reconcile chart| K["Kubernetes Deployment"]
+    K -->|pull promoted image| R["Gitea OCI registry"]
+```
+
+Argo core does not poll registry tags; CI writes the immutable image reference
+into Git. Workload and workflow details differ by application. The docs
+publishing pipeline is a separate, uncommitted declaration with authorization
+and credential gates, not a completed release. GitHub remains a declared mirror
+outside this live reconciliation path.
 
 ## Storage provisioning
 
+The bounded five-participant sequence describes the declared provisioning
+protocol, not a mutation performed by this review.
+
 ```mermaid
 sequenceDiagram
-    participant U as Argo CD / app chart
+    participant A as Argo CD / app chart
     participant K as Kubernetes
-    participant C as csi-driver-nfs controller
-    participant N as csi-nfs-node
-    participant T as TrueNAS (NFSv4.1)
-    U->>K: create PVC (storageClass: truenas-nfs)
+    participant C as NFS CSI controller
+    participant N as NFS CSI node plugin
+    participant T as TrueNAS export
+    A->>K: declare truenas-nfs PVC
     K->>C: provision volume
-    C->>T: mkdir <server>/<export>/<namespace>/<pvc>
-    C-->>K: PV bound (RWX)
-    K->>N: mount on consuming node
-    N->>T: NFS mount (nfsvers=4.1)
-    N-->>U: volume available at pod mountPath
+    C->>T: create PVC subdirectory in existing export
+    C-->>K: bind PV
+    K->>N: mount for consuming pod
+    N->>T: NFSv4.1 mount
+    N-->>K: volume available
 ```
 
 ## Trust and security boundaries
 
-- **Layer separation**: Proxmox root ≠ guest `control`/`ubuntu` ≠ Kubernetes
-  admin kubeconfig ≠ Argo CD RBAC. A credential for one layer does not grant the
-  next.
-- **TLS**: a single internal CA (`atlas-ca`) signs all `*.atlas.lan` certs.
-  Workstations and k3s nodes trust it explicitly; public trust is not assumed.
-- **Secrets**: never committed in plaintext. Sealed Secrets encrypt them at rest
-  in git; the controller's private key is the only in-cluster decryption key.
-- **Registry/CI**: the runner pushes to the private registry over TLS validated
-  by `atlas-ca`; workloads pull with a per-namespace image pull secret.
-- **Webhook path**: Gitea must be explicitly allowed to call the in-cluster Argo
-  CD service (`GITEA__security__ALLOWED_HOST_LIST`), and the payload is
-  HMAC-verified with the shared secret in `argocd-webhook`.
+- Proxmox root, guest `control`/`ubuntu`, Kubernetes cluster-admin and Argo RBAC
+  are separate administrative layers. Existing authorized SSH was used without
+  relaxing host-key trust; Secret values were not inspected.
+- `atlas-ca` is a private trust root. Client trust must be distributed and
+  independently checked; the review's docs `curl -k` status probe does not
+  verify TLS trust.
+- Sealed Secrets encryption in Git depends on controller key recovery. CA key
+  recovery and etcd encryption are distinct concerns.
+- CI dind and platform hostPath/network agents are high-trust boundaries;
+  namespace-local registry pull credentials do not grant forge administration.
+- Only selected namespaces have NetworkPolicies; observed policies and IP
+  allowlists are not proof of tenant isolation or identity enforcement.
 
 ## Inventory quick reference
 
-| Concern | Value |
-| --- | --- |
-| Kubernetes | k3s v1.36.3+k3s1, 3× control-plane/etcd + 1 worker |
-| API endpoint | https://10.0.0.108:6443 (kube-vip) |
-| Ingress hosts | `git.atlas.lan`, `registry.atlas.lan`, `argocd.atlas.lan`, `redop.atlas.lan` |
-| DNS | Pi-hole (LAN) + CoreDNS `coredns-custom` (in-cluster) |
-| TLS CA | `atlas-ca` ClusterIssuer (cert-manager v1.21.2) |
-| Forge/registry | Gitea 1.27.0, PostgreSQL 17, built-in OCI registry |
-| Git over SSH | `ssh://git@git.atlas.lan:2222/<owner>/<repo>.git` (`gitea-ssh-lb`, ServiceLB) |
-| CI | Gitea Actions (act_runner 2.0.1) with dind, `docker:25-git` job image |
-| CD | Argo CD v3.5.3 (app-of-apps), Gitea push webhook, 60s git poll fallback |
-| Storage | TrueNAS NFS (`truenas-nfs`) for platform data; `local-path` default |
-| Observability | kube-prometheus-stack 88.3.0 (Prometheus, Grafana, exporters) |
-| Secrets | Sealed Secrets controller 0.40.0 |
-| Upstream mirror | github.com/211lab/atlas |
+The authoritative dated [review](infrastructure-review.md) includes all hosts,
+guests, namespaces, live/declared Apps, platform HelmCharts, ingress and PVCs.
+Git-over-SSH is `ssh://git@git.atlas.lan:2222/<owner>/<repo>.git`.
+Monitoring Grafana is HTTP node port 3000; DNS uses Pi-hole `.10`, not the old
+unprovisioned `.107` proposal. TrueNAS `.26` is the NFS storage dependency;
+its version and pool health were inaccessible.
 
 ## Gaps and future work
 
-- **Single worker node**: only `atlas-k3s-worker1` schedules general workloads;
-  adding a second worker would improve resilience and capacity.
-- **Prometheus storage** is ephemeral (no PVC); wire it to `truenas-nfs` for
-  retention.
-- **`gitea-actions` Application** reports `OutOfSync` (Helm-generated field
-  noise); it is healthy and functional.
-- **Titan Windows exporter** is not yet installed (physical-host Windows
-  metrics).
-- **TrueNAS `movies` export** is intentionally left untouched and is unrelated
-  to Kubernetes storage.
+There is one worker, several single-replica services, ephemeral monitoring,
+Memex memory/swap pressure, worker disk pressure and persistent runner drift.
+Immich's scheduled backup Job completed but restore/off-site/media protection
+remain unproven. Agent guest SSH and NAS authentication are access gaps.
+Windows-host exporter installation and tailnet/DHCP cutover are historical or
+unverified claims, not live success. The existing NAS movies export is outside
+the Kubernetes design and was not inspected or changed. See review findings
+before planning separately authorized remediation.

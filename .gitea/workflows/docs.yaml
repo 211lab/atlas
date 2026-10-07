@@ -1,0 +1,102 @@
+name: docs
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - requirements-docs.txt
+      - apps/docs/**
+      - .gitea/workflows/docs.yaml
+      - '!apps/docs/chart/values.yaml'
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    container:
+      image: docker:25-git
+    env:
+      EVENT_SHA: ${{ github.sha }}
+      RUN_ID: ${{ github.run_id }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
+      REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+      DOCS_GIT_USER: ${{ secrets.DOCS_GIT_USER }}
+      DOCS_GIT_TOKEN: ${{ secrets.DOCS_GIT_TOKEN }}
+      ATLAS_CA_CERT: ${{ secrets.ATLAS_CA_CERT }}
+    steps:
+      - name: Build, smoke, publish and promote exact main event
+        run: |
+          set -eu
+          test -d /tmp
+          mkdir -p /tmp/opencode
+          WORK=$(mktemp -d /tmp/opencode/docs-ci.XXXXXX)
+          SMOKE=""
+          cleanup() {
+            if [ -n "$SMOKE" ]; then docker rm -f "$SMOKE" >/dev/null 2>&1 || true; fi
+            rm -rf "$WORK"
+          }
+          trap cleanup EXIT
+          umask 077
+          : "${REGISTRY_USER:?}" "${REGISTRY_TOKEN:?}" "${DOCS_GIT_USER:?}" "${DOCS_GIT_TOKEN:?}" "${ATLAS_CA_CERT:?}" "${RUN_ID:?}"
+          printf '%s\n' "$ATLAS_CA_CERT" > "$WORK/atlas-ca.crt"
+          export GIT_SSL_CAINFO="$WORK/atlas-ca.crt"
+          export GIT_TERMINAL_PROMPT=0
+          cat > "$WORK/askpass" <<'SH'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' "$DOCS_GIT_USER" ;;
+            *Password*) printf '%s\n' "$DOCS_GIT_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          SH
+          chmod 700 "$WORK/askpass"
+          export GIT_ASKPASS="$WORK/askpass"
+          git init "$WORK/source"
+          cd "$WORK/source"
+          git remote add origin https://git.atlas.lan/atlas-admin/atlas.git
+          git fetch origin main
+          git fetch origin "$EVENT_SHA"
+          git merge-base --is-ancestor "$EVENT_SHA" origin/main
+          git checkout --detach "$EVENT_SHA"
+          test "$(git rev-parse HEAD)" = "$EVENT_SHA"
+          test -z "$(git status --porcelain)"
+          TAG="sha-${EVENT_SHA}-run-${RUN_ID}-${RUN_ATTEMPT:-1}"
+          REPOSITORY="registry.atlas.lan/atlas-admin/docs"
+          IMAGE="${REPOSITORY}:${TAG}"
+          docker build --label "org.opencontainers.image.revision=${EVENT_SHA}" -f apps/docs/Dockerfile -t "$IMAGE" .
+          BUILT_IMAGE_ID=$(docker image inspect --format '{{.Id}}' "$IMAGE")
+          SMOKE=$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges --memory 64m --cpus 0.1 "$IMAGE")
+          for attempt in 1 2 3 4 5; do
+            if docker exec "$SMOKE" wget -q -O /dev/null http://127.0.0.1:8080/; then break; fi
+            sleep 1
+          done
+          docker exec "$SMOKE" wget -q -O /dev/null http://127.0.0.1:8080/
+          docker exec "$SMOKE" wget -q -O /dev/null http://127.0.0.1:8080/search/search_index.json
+          docker rm -f "$SMOKE" >/dev/null
+          SMOKE=""
+          export DOCKER_CONFIG="$WORK/docker"
+          mkdir "$DOCKER_CONFIG"
+          AUTH=$(printf '%s:%s' "$REGISTRY_USER" "$REGISTRY_TOKEN" | base64 | tr -d '\n')
+          printf '{"auths":{"registry.atlas.lan":{"auth":"%s"}}}\n' "$AUTH" > "$DOCKER_CONFIG/config.json"
+          docker push "$IMAGE" > "$WORK/push.log" 2>&1
+          DIGEST=$(sed -n 's/^[^ ]*: digest: \(sha256:[a-f0-9]\{64\}\) size: [0-9][0-9]*$/\1/p' "$WORK/push.log")
+          test "${#DIGEST}" -eq 71
+          printf '%s\n' "$DIGEST" | grep -Eq '^sha256:[a-f0-9]{64}$'
+          docker pull "${REPOSITORY}@${DIGEST}" > "$WORK/pull.log" 2>&1
+          test "$(docker image inspect --format '{{.Id}}' "${REPOSITORY}@${DIGEST}")" = "$BUILT_IMAGE_ID"
+          git fetch origin main
+          git merge-base --is-ancestor "$EVENT_SHA" origin/main
+          if ! git diff --quiet "$EVENT_SHA" origin/main -- docs mkdocs.yml requirements-docs.txt apps/docs .gitea/workflows/docs.yaml ':!apps/docs/chart/values.yaml'; then
+            printf '%s\n' 'Newer publishing inputs on main; image published but stale promotion skipped.'
+            exit 0
+          fi
+          git checkout -B promote origin/main
+          sed -i -e "s/^  tag: .*/  tag: ${TAG}/" -e "s/^  digest: .*/  digest: ${DIGEST}/" apps/docs/chart/values.yaml
+          test "$(sed -n 's/^  tag: //p' apps/docs/chart/values.yaml)" = "$TAG"
+          test "$(sed -n 's/^  digest: //p' apps/docs/chart/values.yaml)" = "$DIGEST"
+          git add apps/docs/chart/values.yaml
+          git diff --cached --quiet && exit 0
+          git -c user.name=atlas-ci -c user.email=ci@atlas.lan commit -m "ci: promote docs ${TAG}"
+          git push origin HEAD:main

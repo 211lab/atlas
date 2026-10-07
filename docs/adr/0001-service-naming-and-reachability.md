@@ -76,11 +76,23 @@ flowchart TD
     C[Tailnet client] --> MD[MagicDNS 100.100.100.100]
     MD -->|*.ts.net| TS[Tailscale answers locally]
     MD -->|everything else| PH[Pi-hole tailnet agent 100.x.x.x]
-    PH -->|*.atlas.lan| REC[Pi-hole local DNS records<br/>registered by ExternalDNS/dnsweaver]
     PH -->|internet names| UP[Upstream resolver]
+```
+
+This five-element diagram describes the accepted direct-agent/global-DNS
+decision, not verified deployment. The internal-record/serving path is a
+separate four-element view; Pi-hole is the same resolver in both views.
+
+```mermaid
+flowchart LR
+    PH[Pi-hole tailnet agent] -->|*.atlas.lan| REC[Pi-hole local DNS records]
     REC --> TR[Traefik ingress 10.0.0.110-113]
     TR --> SVC[Cluster services]
 ```
+
+Records are maintained by the chosen ExternalDNS webhook (dnsweaver was an
+alternative). The last node is the service endpoint at this context level;
+concrete applications are split in the [application dependency views](../architecture/application-dependencies.md).
 
 ## Consequences
 
@@ -102,27 +114,27 @@ flowchart TD
 
 ### Current status
 
-The naming/reachability pieces are **live** (see
-[Dedicated Pi-hole DNS](../pihole-dns.md)):
+**Observed 2026-10-07** ([review H/K/N](../infrastructure-review.md#evidence-and-scope)):
+Pi-hole is a running unprivileged Memex LXC at `.10`; its DNS answers were
+queried directly and ExternalDNS/webhook containers were Ready. Ansible and
+GitOps files declare provisioning and record registration. The review did not
+read API credentials, test record writes or in-pod DNS, or establish
+router/DHCP/tailnet configuration. The earlier claim that a real app password
+was sealed is not fresh credential evidence.
 
-- The dedicated Pi-hole runs as an unprivileged LXC on `memex` (`10.0.0.10`,
-  `pihole.atlas.lan`), provisioned by `ansible/playbooks/pihole.yaml` /
-  `proxmox-create-pihole-lxc.yml`.
-- `gitops/apps/external-dns.yaml` + `helm/values/external-dns.yaml` run
-  ExternalDNS with the Pi-hole webhook provider; `gitops/sealed/pihole-api.yaml`
-  is sealed with the real app password.
-- `pihole.atlas.lan` resolves for in-cluster clients via CoreDNS
-  (`coredns-custom`); ExternalDNS writes each Ingress host as an A record.
-- Network cutover (router/DHCP pointing at `10.0.0.10`) is the remaining manual
-  step; until then, LAN `.lan` resolution also relies on workstation
-  `/etc/hosts` entries.
+The later [DNS runbook](../atlas-dns.md#part-3--tailnet-access) describes Memex
+subnet routing and split DNS without a Pi-hole tailnet agent. That differs from
+decision item 2's direct agent/global nameserver. Preserve the accepted intent;
+an owner decision and tailnet evidence are needed to reconcile implementation,
+not an unverified assertion that every naming/reachability piece is live.
 
 ## Follow-up items (tracked; not blocking acceptance)
 
-1. **How is the cluster ingress reachable over the tailnet?** *Resolved:*
-   `memex` advertises `10.0.0.0/8` as a subnet route, so tailnet clients reach
-   both Pi-hole (`10.0.0.10`) and the Traefik ingress nodes (`10.0.0.110-113`).
-   `atlas.lan` is published to the tailnet via Tailscale split DNS (see
+1. **How is the cluster ingress reachable over the tailnet?** The historical
+   implementation record says `memex` advertises `10.0.0.0/8`, with Pi-hole
+   `.10` and Traefik `.110–.113` reached through that subnet route and
+   `atlas.lan` published via split DNS. This was not verified in the review
+   and differs from the direct-agent/global-DNS decision (see
    [DNS in the Atlas lab](../atlas-dns.md#part-3--tailnet-access)).
 2. **Naming surface:** flat `svc.atlas.lan`, or per-service wildcards
    (`*.svc.atlas.lan`)? How does this interact with ExternalDNS `domainFilters`?

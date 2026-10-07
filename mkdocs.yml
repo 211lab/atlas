@@ -1,0 +1,18 @@
+site_name: Atlas documentation
+site_url: https://docs.atlas.lan/
+docs_dir: docs
+site_dir: /tmp/opencode/atlas-docs-site
+theme:
+  name: material
+plugins:
+  - search
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format

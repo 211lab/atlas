@@ -46,7 +46,7 @@ kubeseal --fetch-cert --controller-name sealed-secrets-controller \
 
 The host is an unprivileged LXC container on the `memex` Proxmox host
 (`10.0.0.10`, Debian 12). Creation is automated; see
-[Proxmox Pi-hole LXC](../ansible/docs/proxmox-pihole-lxc.md) for the container
+[Proxmox Pi-hole LXC](pihole-dns.md#12-create-the-container-and-bootstrap-access) for the container
 spec and the memory-lean profile. The container is created with the `control`
 public key already installed for `root`.
 

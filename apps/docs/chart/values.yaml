@@ -1,0 +1,30 @@
+image:
+  repository: registry.atlas.lan/atlas-admin/docs
+  tag: unreleased-bootstrap
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: gitea-registry
+
+replicaCount: 1
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: traefik
+  host: docs.atlas.lan
+  annotations:
+    cert-manager.io/cluster-issuer: atlas-ca
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  tlsSecretName: docs-tls
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 16Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
