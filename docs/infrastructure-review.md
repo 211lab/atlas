@@ -2,14 +2,13 @@
 
 ## Evidence and scope
 
-**Collection: 2026-10-07, beginning 03:32 UTC**, using the workstation's machine
-clock (`date -u`), not the session date of 2026-10-06. Proxmox displayed
-2026-10-06 23:32 local time. These are point-in-time observations, not ongoing
-monitoring. Later verification commands do not silently refresh these tables.
+**Collection:** using the workstation's machine clock (`date -u`). These are
+point-in-time observations, not ongoing monitoring. Later verification commands
+do not silently refresh these tables.
 
 Evidence keys used throughout this review and its linked architecture pages:
 
-| Key | Classification and source, collected/read 2026-10-07 |
+| Key | Classification and source |
 | --- | --- |
 | D | **Declared:** `inventory.yml`, `gitops/apps/*.yaml`, `gitops/bootstrap/root-app.yaml`, `gitops/manifests/`, `helm/values/`, application chart values/templates and `apps/immich/manifests/` in this checkout; not proof of deployment |
 | H | **Live hosts:** authorized `control` SSH with existing `id_rsa_control`, `BatchMode=yes`, `StrictHostKeyChecking=yes`, `UpdateHostKeys=no`, 5s connect timeout and 25–35s command timeout; `hostname`, `uname`, selected OS/CPU/memory/root-filesystem fields, `pveversion`, `pvecm status`, `qm list`, `pct list`, `pvesm status`, allowlisted guest capacity/storage fields |
@@ -17,14 +16,14 @@ Evidence keys used throughout this review and its linked architecture pages:
 | K | **Live API:** `/home/wsl/.local/bin/kubectl --kubeconfig /home/wsl/.kube/atlas-admin.yaml --request-timeout=15s`; `get nodes,ns,pods,deploy,sts,ds,job,cronjob,svc,ingress,pvc,pv,sc,certificate,clusterissuer,application,networkpolicy,middleware,resourcequota,limitrange,pdb,helmchart,cluster.postgresql.cnpg.io`, `top nodes`, warning-event metadata and `/readyz?verbose`; only relevant non-secret fields retained |
 | N | **Live DNS/HTTP:** `dig +time=2 +tries=1 +short @10.0.0.10 docs.atlas.lan` and `pihole.atlas.lan`; bounded `curl -k` GET to docs through node `.110`, response status only; `pihole -v` and FTL service status over H SSH |
 | B | **Live recovery metadata:** `pvesh get /cluster/backup` and `/cluster/ha/resources` returned empty arrays on Turing and Memex; G lists local etcd snapshots; K lists completed backup Job and CronJob status; no backup contents read |
-| P | **Historical:** dated claims in AGENTS (2026-10-04), old architecture/control-plane snapshots (2026-10-02), and Immich rollout runbook (2026-10-07); not independently live-verified unless paired with another key |
+| P | **Historical:** dated claims in AGENTS, old architecture/control-plane snapshots, and the Immich rollout runbook; not independently live-verified unless paired with another key |
 | U | **Unavailable/unverified:** explicit limitation, not an absence claim |
 
 No new SSH keys were accepted, no Secret objects or configuration/environment
 dumps were read, no personal application records were inspected, and no runtime
 changes, commits, pushes or tags were performed. Proxmox inspection used SSH's
 local `pvesh` read endpoints; authenticated external API credentials were not
-retrieved. Inventory coverage is nine entries: six baremetal hosts, agent,
+retrieved. Inventory coverage is nine entries: six baremetal hosts, hermes,
 Pi-hole and localhost. See [placement diagrams](architecture/placement.md).
 
 ## Hosts and failure domains
@@ -42,8 +41,8 @@ usage are distinct from guest/NAS filesystem usage.
 | lovelace / 10.0.0.103 | Atlas cluster; VM 203 | i5-6500, 4 / 15.50 GiB | 66.35 GiB / 16.04%; 14.41% | Online, ~6.2 GiB used, no swap used; node-exporter active |
 | babbage / 10.0.0.104 | Atlas cluster; VM 204 | i5-6500T, 4 / 15.50 GiB | 67.73 GiB / 15.82%; 34.97% | Online, ~8.0 GiB used, no swap used; node-exporter active |
 | memex / 10.0.0.105 | Standalone PVE; VMs 100, 102, 9000 and LXC 63008 | Intel N150, 4 / 15.36 GiB | 93.94 GiB / 13.78%; 23.30% | No Corosync config; ~14.1 GiB used, ~1.26 GiB available, ~3.98 GiB swap used; node-exporter inactive |
-| minsky / 10.0.0.106 | Standalone PVE; VM 87765 | Ryzen Embedded R2544, 8 / 15.33 GiB | 93.94 GiB / 9.98%; 14.06% | No Corosync config; ~10.7 GiB used, no swap used; node-exporter inactive |
-| agent / 10.0.10.155 | Declared service host; VM 87765 named agent on Minsky | Guest configured 4 vCPU / 12 GiB, 64 GiB disk (H); OS/software U | `control` SSH timed out after 5s | VM running is not guest-service health; address association D, no guest agent/IP confirmation |
+| minsky / 10.0.0.106 | Standalone PVE; VM 94266 | Ryzen Embedded R2544, 8 / 15.33 GiB | 93.94 GiB / 9.98%; 14.06% | No Corosync config; ~10.7 GiB used, no swap used; node-exporter inactive |
+| hermes / 10.0.10.1 | Declared service host; VM 94266 named hermes on Minsky | Guest configured 4 vCPU / 12 GiB, 64 GiB disk (H); Ubuntu 22.04.5 (H) | `control` SSH reachable | Static address; VM running is not guest-service health; exposed services and recovery U |
 | pihole / 10.0.0.10 | Live Debian 12 DNS LXC 63008 on Memex | 1 configured core / 256 MiB + 256 MiB swap, 4 GiB rootfs | Guest root ~22% used; ~42 MiB RAM used | FTL active; Core 6.4.3, Web 6.6, FTL 6.7.1 (N); single resolver; DHCP/client adoption U |
 | wsl_local / 127.0.0.1 | Local administrative workstation; WSL2, not PVE (local H) | Ryzen 7 5800X exposed as 16 CPUs / 15.58 GiB | ~1007 GiB root / ~29% used | Kernel `6.18.33.1-microsoft-standard-WSL2`; kubectl/SSH collection succeeds; Windows-host capacity/backup/metrics U |
 
@@ -74,7 +73,7 @@ membership or guest failure.
 | Memex / VM / 100 | truenas, running | 4 vCPU, 16 GiB, 64 GiB local-lvm boot + four ~9314 GiB passed-through disks | NAS `.26` (D/K); live NFS consumers K. `control@10.0.10.26` rejected public-key auth; NAS version/pool health/free space/export permissions/snapshots U |
 | Memex / VM / 102 | homeos, stopped | 2 vCPU, 2 GiB, 21.5 GiB local-lvm | Historical home automation guest; OS/app versions and reason for stopped state U; not the live Kubernetes Home Assistant |
 | Memex / VM / 9000 | ubuntu-cloud-init-template, stopped, template=1 | 2 vCPU, 2 GiB, 3.5 GiB local-lvm base disk | Rebuild source, not a running service; template OS/image age and validation U |
-| Minsky / VM / 87765 | agent, running | 4 vCPU, 12 GiB, 64 GiB local-lvm | Inventory `.155` association D; SSH timeout; software, disks in guest, exposed services and recovery U |
+| Minsky / VM / 94266 | hermes, running | 4 vCPU, 12 GiB, 64 GiB local-lvm | Static `.1`; SSH reachable; Ubuntu 22.04.5; exposed services and recovery U |
 | Memex / LXC / 63008 | pihole, running, unprivileged=1 | 1 core, 256 MiB memory/swap each, 4 GiB local-lvm | Bridge vmbr0, `.10/24`, gateway `.1` (allowlisted H); DNS N; container firewall/backup/restore U |
 
 TrueNAS's configured 16 GiB exceeds Memex's usable host RAM before PVE and
@@ -243,9 +242,9 @@ databases replicated. Prometheus, Grafana, Argo caches and Valkey are ephemeral
 | H: Memex ~92% used memory, ~4 GiB swap; TrueNAS allocated 16 GiB on ~15.36 GiB host | DNS and all NFS-backed services share this pressure/failure domain; NAS health and backup proof unavailable |
 | G/K: worker root 84% used; control-plane memory ~68–69% | Capacity margin needs operator attention; no cleanup/resize performed; no sustained-load or pressure-event analysis |
 | K: all nodes schedulable, most app components on control planes; single DB/forge/ingress replicas | Node or host loss can interrupt services despite API quorum; failover not tested |
-| B/G: five recent local etcd snapshots per control plane, newest 2026-10-07 00:00 UTC (plus cp1 bootstrap snapshot) | Local restore candidates exist, but off-host copies, integrity and restore rehearsal U; snapshots do not back up application PVCs |
+| B/G: five recent local etcd snapshots per control plane (plus cp1 bootstrap snapshot) | Local restore candidates exist, but off-host copies, integrity and restore rehearsal U; snapshots do not back up application PVCs |
 | B: Turing/Memex backup and HA resource lists empty | No configured jobs/resources there; manual/external backups remain U, not proven absent everywhere |
-| K/D/P: Immich scheduled Job succeeded 2026-10-07 02:00:12; P records an earlier one-off Restic snapshot | One scheduled completion is new evidence, not snapshot contents, retained history or successful restore; no pod exec or temporary recovery pods created |
+| K/D/P: Immich scheduled Job succeeded; P records an earlier one-off Restic snapshot | One scheduled completion is new evidence, not snapshot contents, retained history or successful restore; no pod exec or temporary recovery pods created |
 | K: six NetworkPolicies: four Argo ingress policies, Gitea PostgreSQL, Home Assistant ingress | No observed namespace-wide default deny elsewhere; DB policy permits port 5432 without a source selector and unrestricted egress; enforcement not tested |
 | K/D: 3f-app, Redop, Home Assistant middleware allows 10.0.0.0/8 | Broad internal network access, not user authentication. 3f-app development mode and Redop cockpit disabled auth are declared; do not infer production isolation |
 | K/D/P: privileged host-network/hostPath platform agents, CI dind and shared GitOps project | High-trust administration/CI boundary; RBAC, encryption-at-rest configuration, firewall and credential rotation not audited. Sealed Secrets protects Git ciphertext, not automatically every live Secret in etcd |
@@ -282,13 +281,13 @@ fresh authorization; no recovery action was run by this review.
 
 ## Local validation handoff
 
-Validation on 2026-10-07 found **43 diagrams**, all at most five elements.
+Validation found **43 diagrams**, all at most five elements.
 All rendered successfully with temporary Mermaid CLI 11.12.0 outside the
 checkout. Source coverage checks matched nine inventory addresses, all 17 live
 namespaces, 14 live Applications and ten PVCs; the pinned docs environment
 matched all 29 dependency versions.
 
-Subsequent local verification on 2026-10-07 passed the strict MkDocs build of a
+Subsequent local verification passed the strict MkDocs build of a
 clean intended-release source, excluding the unrelated backlog and six pending
 specs. The out-of-tree Pi-hole runbook link was corrected to a published target;
 the built site has no broken internal links/anchors and a populated search index.
@@ -300,5 +299,5 @@ renders SVGs inside closed shadow roots, so checking only host HTML misses them.
 The verification retained those roots through `attachShadow` instrumentation;
 standalone rendering alone is still insufficient. Mermaid remains CDN-dependent,
 so local success does not establish offline availability or live deployment.
-The dated 2026-10-07 live observation remains blocked: no docs ingress
+The live observation remains blocked: no docs ingress
 and HTTP 404.

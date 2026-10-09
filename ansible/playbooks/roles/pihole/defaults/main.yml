@@ -51,7 +51,7 @@ pihole_local_records:
   # Non-k8s services
   - { ip: "10.0.10.24", names: ["homeos.atlas.lan"] }
   - { ip: "10.0.10.26", names: ["truenas.atlas.lan"] }
-  - { ip: "10.0.10.155", names: ["agent.atlas.lan"] }
+  - { ip: "10.0.10.1", names: ["hermes.atlas.lan"] }
 
 # Wildcard: any *.atlas.lan name without an explicit record resolves to the
 # Traefik ingress nodes via dnsmasq `address=/atlas.lan/<ip>`. Explicit records

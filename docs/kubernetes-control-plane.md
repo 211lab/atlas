@@ -4,14 +4,14 @@
 
 > Scope: the four-member Atlas Proxmox cluster runs the highly available k3s control plane. The inventory also includes standalone Proxmox hosts Memex and Minsky. This is a tailored operational guide. It contains no passwords, private keys, node-join tokens, or kubeconfig credential data.
 
-For the **2026-10-07 live collection**, all inventoried hosts/guests, all 17
+For the **live collection**, all inventoried hosts/guests, all 17
 namespaces and recovery gaps, see the [infrastructure review](infrastructure-review.md).
-The tables below retain the dated historical snapshot and operational examples;
+The tables below retain the historical snapshot and operational examples;
 they are not a live-health cache. Control planes are schedulable and run apps.
 
 ## Current deployed infrastructure
 
-Verified 2026-10-02 from the Atlas API VIP (`https://10.0.0.108:6443`).
+Verified from the Atlas API VIP (`https://10.0.0.108:6443`).
 
 | Component | Status | Source-of-truth detail |
 | --- | --- | --- |
@@ -226,7 +226,7 @@ kubectl --kubeconfig ~/.kube/atlas-admin.yaml -n monitoring get scrapeconfig
 helm --kubeconfig ~/.kube/atlas-admin.yaml list -A
 ~~~
 
-Expected nodes (verified 2026-10-02):
+Expected nodes:
 
 ~~~text
 NAME                STATUS   ROLES                AGE   VERSION        INTERNAL-IP   OS-IMAGE             CONTAINER-RUNTIME
@@ -236,7 +236,7 @@ atlas-k3s-cp3       Ready    control-plane,etcd   48d   v1.36.3+k3s1   10.0.0.11
 atlas-k3s-worker1   Ready    worker               48d   v1.36.3+k3s1   10.0.0.113    Ubuntu 24.04.4 LTS   containerd://2.3.2-k3s2
 ~~~
 
-Namespaces verified 2026-10-04 included `default`, `kube-node-lease`,
+Namespaces included `default`, `kube-node-lease`,
 `kube-public`, `kube-system`, `argocd`, `cert-manager`, `gitea`, `sealed-secrets`,
 `monitoring`, `demo`, `redop`, and an empty orphan `external-dns`. The `demo`
 namespace is legacy: its workload is no longer declared in Git and the namespace

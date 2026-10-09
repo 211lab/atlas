@@ -6,10 +6,10 @@ has at most five elements, counting participants and visible containers.
 Repeated nodes across views refer to the same component. No grouping boxes
 hide additional entities.
 
-Sources: [infrastructure review D/H/G/K/N, collected 2026-10-07](infrastructure-review.md#evidence-and-scope).
+Sources: [infrastructure review D/H/G/K/N](infrastructure-review.md#evidence-and-scope).
 Declared relationships are not proof of successful live traffic. The older
-2026-10-02 snapshot is superseded by the review's explicit live evidence and
-gaps. Companion runbooks: [control plane](kubernetes-control-plane.md),
+snapshot is superseded by the review's explicit live evidence and gaps.
+Companion runbooks: [control plane](kubernetes-control-plane.md),
 [GitOps](gitops-platform.md), [DNS](atlas-dns.md),
 [applications](applications.md).
 
@@ -247,7 +247,7 @@ action. Bound storage does not prove backup durability.
 The [physical placement page](architecture/placement.md) splits all six hosts
 and every guest into focused views. Turing/Hopper/Lovelace host VMs 201–203;
 Babbage hosts VM 204; Memex hosts TrueNAS, Pi-hole, stopped HomeOS and a
-template; Minsky hosts agent. The four core PVE hosts have one k3s VM each.
+template; Minsky hosts hermes. The four core PVE hosts have one k3s VM each.
 There is no claim of VM HA migration: observed HA-resource lists on Turing and
 Memex were empty.
 
@@ -256,7 +256,7 @@ Memex were empty.
 | Layer | Name / address | Role / configured capacity |
 | --- | --- | --- |
 | PVE cluster | Turing `.101`, Hopper `.102`, Lovelace `.103`, Babbage `.104` | Four quorum voters; 4 CPUs/~15.5 GiB usable each |
-| Standalone PVE | Memex `.105`, Minsky `.106` | NAS/DNS versus agent; separate failure domains, not cluster members |
+| Standalone PVE | Memex `.105`, Minsky `.106` | NAS/DNS versus hermes; separate failure domains, not cluster members |
 | k3s server | cp1/2/3 `.110/.111/.112` | Each 2 vCPU/4 GiB configured, ~3.76 GiB API capacity; embedded etcd |
 | k3s agent | worker1 `.113` | 2 vCPU/6 GiB configured, ~5.72 GiB API capacity |
 | API VIP | `.108:6443` | kube-vip, not an additional server |

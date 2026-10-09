@@ -7,6 +7,7 @@ vm_name: ubuntu-2204-ci
 vm_memory: 4096
 vm_cores: 2
 vm_disk_size: 32G
+vm_onboot: 1
 
 storage: local-lvm
 bridge: vmbr0

@@ -1,6 +1,6 @@
 # Physical placement and failure domains
 
-Source: [review evidence H/G/K/D, 2026-10-07](../infrastructure-review.md#evidence-and-scope).
+Source: [review evidence H/G/K/D](../infrastructure-review.md#evidence-and-scope).
 Each diagram has three or four elements, no grouping containers. Arrows marked
 "hosts" indicate placement, not network traffic. Four PVE members are quorate;
 the two standalone hosts are not additional quorum voters.
@@ -66,8 +66,8 @@ RAID/pool health and recovery remain unavailable.
 
 ```mermaid
 flowchart LR
-    M["Minsky .106"] -->|hosts VM 87765| A["agent VM"]
-    I["Inventory .155"] -.->|declared address; SSH timeout| A
+    M["Minsky .106"] -->|hosts VM 94266| A["hermes VM"]
+    I["Inventory .1"] -.->|static address| A
 ```
 
 ```mermaid

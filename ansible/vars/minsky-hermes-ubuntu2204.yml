@@ -1,10 +1,10 @@
 ---
 target_host: minsky
 
-vm_name: agent
-vm_memory: 4096
-vm_cores: 2
-vm_disk_size: 32G
+vm_name: hermes
+vm_memory: 12288
+vm_cores: 4
+vm_disk_size: 64G
 
 storage: local-lvm
 bridge: vmbr0
@@ -17,7 +17,7 @@ ci_ssh_public_key_file: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa_control.pub"
 ci_sudo: "ALL=(ALL) NOPASSWD:ALL"
 ci_groups: sudo
 dns_server: 10.0.0.1
-ipconfig0: ip=dhcp
+ipconfig0: ip=10.0.10.1/8,gw=10.0.0.1
 
 destroy_existing_vm: false
 start_vm: true
