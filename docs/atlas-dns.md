@@ -15,7 +15,7 @@ repository runbook `ansible/docs/proxmox-pihole-lxc.md` (container).
 
 ## Architecture
 
-Sources: [review D/K/N/H, 2026-10-07](infrastructure-review.md#evidence-and-scope).
+Sources: [review D/K/N/H](infrastructure-review.md#evidence-and-scope).
 Pi-hole `.10` and ExternalDNS containers are observed running; wildcard answers
 were observed directly. Static record completeness, authenticated writes,
 in-cluster forwarding and tailnet/DHCP cutover are not proven by those checks.
@@ -95,7 +95,7 @@ that is not a Kubernetes Service:
 | `api.atlas.lan` (kube-vip API VIP) | `10.0.0.108` |
 | `homeos.atlas.lan` | `10.0.10.24` |
 | `truenas.atlas.lan` | `10.0.10.26` |
-| `agent.atlas.lan` | `10.0.10.155` |
+| `hermes.atlas.lan` | `10.0.10.1` |
 
 Add or change these in `pihole_local_records` (role defaults or `-e`). The role
 **merges** them into `dns.hosts` and never replaces ExternalDNS-owned entries.

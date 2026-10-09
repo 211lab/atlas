@@ -120,6 +120,7 @@
       -name {{ vm_name }}
       -memory {{ vm_memory }}
       -cores {{ vm_cores }}
+      -onboot {{ vm_onboot }}
       -net0 virtio,bridge={{ bridge }}
       -scsihw virtio-scsi-pci
       -scsi0 {{ storage }}:vm-{{ vmid_resolved }}-disk-0

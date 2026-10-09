@@ -23,7 +23,7 @@ kubectl get nodes
 resolve it, use `--resolve <host>:443:10.0.0.110` (or add a Pi-hole/hosts entry).
 `kubectl`, `helm` and `kubeseal` may need installing (see `AGENTS.md`).
 
-## Verified snapshot — 2026-10-04
+## Verified snapshot
 
 ### Cluster
 
