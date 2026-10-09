@@ -18,23 +18,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "redop.fullname" . }}-ui
-  labels:
-    {{- include "redop.labels" . | nindent 4 }}
-    app.kubernetes.io/component: ui
-spec:
-  type: ClusterIP
-  selector:
-    {{- include "redop.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: ui
-  ports:
-    - name: http
-      port: {{ .Values.ui.port }}
-      targetPort: http
----
-apiVersion: v1
-kind: Service
-metadata:
   name: {{ include "redop.fullname" . }}-cockpit
   labels:
     {{- include "redop.labels" . | nindent 4 }}

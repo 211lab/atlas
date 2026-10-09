@@ -1,10 +1,10 @@
 {{- if .Values.ingress.enabled }}
 {{- /*
-  Same-origin ingress (owner decision 2026-10-04; ADR 0012): `/red/*` routes to
-  the RED API, `/screens/*` to the RED thin client (served under a subpath), and
-  everything else (including `/api/backend/*`) to the OpenExecutive cockpit,
-  which owns the root. The Atlas allowlist middleware keeps the host internal to
-  the home lab (SPEC.md section 9).
+  Same-origin ingress (owner decision 2026-10-04; ADR 0012, ADR 0013): `/red/*`
+  routes to the RED API and everything else (including `/api/backend/*`) to the
+  OpenExecutive cockpit, which owns the root and serves the native
+  `/operations/*` RED screens. The Atlas allowlist middleware keeps the host
+  internal to the home lab (SPEC.md section 9).
 */}}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
@@ -39,13 +39,6 @@ spec:
                 name: {{ include "redop.fullname" . }}-api
                 port:
                   number: {{ .Values.api.port }}
-          - path: /screens
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "redop.fullname" . }}-ui
-                port:
-                  number: {{ .Values.ui.port }}
           - path: /api/backend
             pathType: Prefix
             backend:

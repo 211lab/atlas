@@ -7,15 +7,14 @@
 # Job runs before the API serves; see templates/migration-job.yaml and the API
 # initContainer in templates/deployment-api.yaml.
 #
-# `apiTag` and `uiTag` are promoted by the Gitea build workflow
+# `apiTag` and `cockpitTag` are promoted by the Gitea build workflow
 # (`.gitea/workflows/build.yaml`) after it pushes the images to
 # registry.atlas.lan. Keep them as top-level keys: the workflow rewrites these
 # exact lines.
 
 # Image tags promoted by CI. Empty falls back to the chart appVersion.
-apiTag: sha-acbcee9
-uiTag: sha-acbcee9
-cockpitTag: sha-acbcee9
+apiTag: sha-51b69f3
+cockpitTag: sha-51b69f3
 
 image:
   registry: registry.atlas.lan
@@ -51,26 +50,12 @@ api:
     EPISODIC_DB_PATH: /data/episodic_memory.db
     COMPANY_PROFILE_PATH: /data/company/profile.yaml
 
-# The thin Next.js UI. Holds no RED business logic (ADR 0007); calls the API
-# same-origin under `/red`, so `NEXT_PUBLIC_RED_API_BASE` is empty at build
-# time and no runtime env is required. ADR 0012: the cockpit owns the root, so
-# this UI is served under `/screens` (built with NEXT_PUBLIC_RED_BASE_PATH).
-ui:
-  repository: atlas-admin/redop-ui
-  replicas: 1
-  port: 3000
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 768Mi
-
-# The OpenExecutive cockpit UI (ADR 0012), rebranded RED through the ADR 0011
-# overlay. It owns the root and proxies `/api/backend/*` to the mounted
-# OpenExecutive backend at `/openexecutive`, sending `x-api-key` from
-# BACKEND_SHARED_SECRET. Auth is disabled (internal-only).
+# The OpenExecutive cockpit UI (ADR 0012, ADR 0013), rebranded RED through the
+# ADR 0011 overlay. It is the only user-facing UI: it owns the root, serves the
+# native `/operations/*` RED screens, and proxies `/api/backend/*` to the
+# mounted OpenExecutive backend at `/openexecutive`, sending `x-api-key` from
+# BACKEND_SHARED_SECRET. Auth is disabled (internal-only). The separate
+# `/screens` thin client is retired (K7).
 cockpit:
   repository: atlas-admin/redop-cockpit
   replicas: 1
