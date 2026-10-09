@@ -156,6 +156,10 @@ kubectl -n argocd annotate application external-dns argocd.argoproj.io/refresh=h
    (**DNS → Nameservers**, split DNS for `atlas.lan`, or a global nameserver with
    "Override local DNS"). See
    [DNS in the Atlas lab → Tailnet access](atlas-dns.md#part-3--tailnet-access).
+4. **Cross-subnet clients:** for clients on a different subnet than Pi-hole
+   (e.g. WiFi `10.0.10.0/24`), the router must route (not NAT) to
+   `10.0.0.0/24` and hand out `10.0.0.10` as DNS; Pi-hole's
+   `pihole_listening_mode` must be `all` (not `local`) to answer them.
 
 ## Phase 6 — Verify end to end
 
@@ -185,6 +189,7 @@ endpoint returns 200.
 | Records deleted unexpectedly | Not possible with `policy: upsert-only`; ExternalDNS never prunes. Static records are also safe. |
 | In-cluster names fail | CoreDNS `coredns-custom` (Phase 3) is separate from the Pi-hole; verify both. |
 | WSL `*.atlas.lan` unresolved | Add entries to `/etc/hosts` (see below) or point the workstation at Pi-hole. |
+| Pi-hole shows the router (`10.0.0.1`) instead of WiFi clients | Clients are off-subnet; set `pihole_listening_mode: all` and confirm the router routes (not NATs) between subnets; verify with `dig @10.0.0.10` from a WiFi client and the query log. |
 
 Workstation fallback (`/etc/hosts`), until Pi-hole is the resolver:
 

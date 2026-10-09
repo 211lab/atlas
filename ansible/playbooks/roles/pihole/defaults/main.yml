@@ -18,6 +18,12 @@ pihole_dnssec: false
 pihole_rev_server: false
 pihole_blocking_enabled: true
 
+# Listening mode. `all` = permit all origins, required so off-subnet clients
+# (e.g. 10.0.10.0/24 WiFi routed via the router) and tailnet clients are
+# answered. `single` restricts answers to eth0 and would break tailnet
+# resolution. Installer form is lowercase; FTL form is uppercased below.
+pihole_listening_mode: all
+
 # Memory-lean profile applied via `pihole-FTL --config` (Pi-hole v6). FTL keeps
 # the gravity domain set and the DNS cache in memory; these keep the footprint
 # small enough for a 256 MiB container. See ansible/docs/proxmox-pihole-lxc.md.
@@ -28,6 +34,7 @@ pihole_ftl_settings:
   - { key: "dns.queryLogging", value: "true" }
   - { key: "misc.privacylevel", value: "2" }
   - { key: "webserver.threads", value: "10" }
+  - { key: "dns.listeningMode", value: "{{ pihole_listening_mode | upper }}" }
 
 # Web UI. Leave empty to set a random password at install time (read it with
 # `pihole setpassword` afterwards). Prefer supplying this from Vault/extra-vars.

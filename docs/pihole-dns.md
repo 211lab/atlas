@@ -125,6 +125,28 @@ pihole_local_records:
 2. **Pi-hole upstreams**: keep public resolvers so non-lab names resolve.
 3. **Local domain**: Pi-hole answers `atlas.lan` and `lan` from its local
    records; everything else is forwarded upstream.
+4. **Cross-subnet clients**: Pi-hole must be told to answer clients that are not
+   on its own subnet. The role's `pihole_listening_mode` (default `all`) sets
+   Pi-hole v6 `dns.listeningMode`; the old default `local` only answers clients
+   on Pi-hole's own subnet, which is why WiFi clients on `10.0.10.0/24` were
+   logged as the router (`10.0.0.1`) instead of their real addresses.
+5. **Router routing**: for the WiFi scope the router must hand out `10.0.0.10`
+   as DNS **and** must route (not NAT/masquerade) between `10.0.10.0/24` and
+   `10.0.0.0/24`. If it NATs, Pi-hole still sees `10.0.0.1` and no Pi-hole
+   change can recover the client IP.
+6. **DHCP**: Pi-hole DHCP cannot serve the WiFi subnet — DHCP broadcasts do not
+   cross the router without a relay — so making Pi-hole the DHCP server is not a
+   fix here.
+
+Verify from a WiFi client:
+
+```sh
+dig @10.0.0.10 example.com
+```
+
+Then check the Pi-hole query log: a real `10.0.10.x` address means routing
+works; `10.0.0.1` means the router is NATing; a timeout means the listening mode
+is still blocking.
 
 ### 1.5 Verify
 
