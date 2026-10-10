@@ -73,7 +73,7 @@ Notes:
 
 - The role installs Pi-hole v6 unattended, is idempotent, and bakes in a
   memory-lean FTL profile (`dns.cache.size 2000`, `database.maxDBdays 7`,
-  `dns.queryLogging false`, `misc.privacylevel 2`, `webserver.threads 10`).
+  `dns.queryLogging true`, `misc.privacylevel 0`, `webserver.threads 10`).
 - The Pi-hole **app password** (Settings → API) is what ExternalDNS uses; it is
   the same value as the admin password supplied above.
 

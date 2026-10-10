@@ -69,7 +69,7 @@ Baked into the `pihole` role and applied idempotently via `pihole-FTL --config`:
 | `database.maxDBdays` | 7 | short query-history retention |
 | `database.DBinterval` | 300 | fewer DB writes |
 | `dns.queryLogging` | true | per-query logging enabled |
-| `misc.privacylevel` | 2 | aggregate client detail |
+| `misc.privacylevel` | 0 | full query detail (domains + clients) |
 | `webserver.threads` | 10 | fewer web threads |
 
 Override any of them per run with `-e pihole_ftl_settings=<list>`. The dominant

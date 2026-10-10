@@ -32,7 +32,7 @@ pihole_ftl_settings:
   - { key: "database.maxDBdays", value: "7" }
   - { key: "database.DBinterval", value: "300" }
   - { key: "dns.queryLogging", value: "true" }
-  - { key: "misc.privacylevel", value: "2" }
+  - { key: "misc.privacylevel", value: "0" }
   - { key: "webserver.threads", value: "10" }
   - { key: "dns.listeningMode", value: "{{ pihole_listening_mode | upper }}" }
 
