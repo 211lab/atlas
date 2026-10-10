@@ -15,7 +15,7 @@ the operating runbook (provision → wire → verify) is
 | OS template | `debian-12-standard_12.12-1_amd64.tar.zst` |
 | Type | unprivileged, `features=nesting=1,keyctl=1` |
 | Resources | 1 vCPU, 256 MiB RAM, 256 MiB swap, 4 GiB rootfs on `local-lvm` |
-| Network | `eth0` on `vmbr0`, `10.0.0.10/24`, gw `10.0.0.1` |
+| Network | `eth0` on `vmbr0`, `10.0.0.10/8`, gw `10.0.0.1` |
 | Hostname | `pihole` (`pihole.atlas.lan`) |
 | Boot | `onboot=1`, started after create |
 | Access | `~/.ssh/id_rsa_control.pub` installed for `root` at create time |
@@ -44,6 +44,20 @@ ansible-playbook ansible/playbooks/pihole.yaml \
   -e pihole_webpassword="$PIHOLE_ADMIN_PASSWORD" \
   -e 'pihole_local_records=[{"ip":"10.0.0.10","names":["pihole.atlas.lan","dns.atlas.lan"]},{"ip":"10.0.0.1","names":["router.lan","gw.lan"]}]'
 ```
+
+## Apply a network change to an existing container
+
+The `proxmox_lxc` role only **creates** containers, so a netmask change is not
+applied to an already-running Pi-hole. To change it on the live container, run
+on the Proxmox host:
+
+```sh
+ssh memex sudo pct set <vmid> --net0 name=eth0,bridge=vmbr0,ip=10.0.0.10/8,gw=10.0.0.1
+ssh memex sudo pct reboot <vmid>
+```
+
+`<vmid>` is the hash-derived container ID (see the Container table). The restart
+briefly interrupts DNS. Omitting `hwaddr` may assign a new MAC address.
 
 ## Memory-lean profile
 
