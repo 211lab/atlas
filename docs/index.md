@@ -34,10 +34,6 @@ instructions, not continuously refreshed health reports.
 - [Build, publish, release and roll back this site](docs-publishing.md)
 - [Documentation site and infrastructure review specification](specs/docs-site-and-infrastructure-review.md)
 
-## Stories from the lab
-
-- [The clean room: how Photoshop became PhotoCraft](blog/photocraft-clean-room-story.md) — clean-room reverse engineering, spec-driven parity and an AI crew that shipped it to the cluster
-
 The canonical site is `https://docs.atlas.lan/`. DNS resolution is not proof of
 deployment: the review's 2026-10-07 collection found no docs ingress and HTTP
 404. Publishing remains gated on authorization and the prerequisites in the

@@ -80,6 +80,10 @@ docs/adr/                    architecture decision records
   cluster-scoped objects (ClusterIssuer, StorageClass, CoreDNS ConfigMap, …).
 - Prefix Argo CD Applications with `argocd.argoproj.io/sync-wave` when one must
   come first (e.g. a CRD-providing operator before its CRs).
+- **Blog posts are never published on this site.** "The blog" always means
+  davemainville.com (the `~/website-davemainville-com` Astro site, with its own
+  AGENTS.md publish workflow). This repo's `docs/` is platform documentation
+  only.
 - **Diagrams**: every Mermaid diagram stays at 5 elements or fewer. Labels and
   connections do not count toward the limit. Need more? Split into two chained
   diagrams (the last element of one repeats as the first of the next). Check
