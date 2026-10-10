@@ -72,6 +72,29 @@
   changed_when: true
   notify: Restart pihole-FTL
 
+- name: Re-read critical Pi-hole FTL settings after apply
+  ansible.builtin.command:
+    cmd: "pihole-FTL --config {{ item.key }}"
+  loop:
+    - { key: "dns.listeningMode", expected: "{{ pihole_listening_mode | upper }}" }
+    - { key: "misc.privacylevel", expected: "0" }
+  register: pihole_ftl_verify
+  changed_when: false
+  failed_when: false
+
+- name: Assert critical Pi-hole FTL settings took effect
+  ansible.builtin.assert:
+    that:
+      - (item.stdout | default('') | trim | upper) == (item.item.expected | upper)
+    fail_msg: >-
+      Pi-hole FTL setting {{ item.item.key }} is
+      '{{ item.stdout | default('') | trim }}' but expected
+      '{{ item.item.expected }}'. The role did not apply it.
+    success_msg: "{{ item.item.key }} = {{ item.stdout | trim }}"
+  loop: "{{ pihole_ftl_verify.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
 - name: Build Pi-hole v6 static DNS host entries
   ansible.builtin.set_fact:
     pihole_dns_hosts_entries: >-
