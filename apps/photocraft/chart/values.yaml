@@ -1,0 +1,36 @@
+# PhotoCraft web build (WASM + nginx) on the Atlas k3s cluster.
+#
+# The image tag is owned by CI; the release workflow rewrites this line on
+# promote. Keep the two-space indentation of `tag:` — the Gitea build workflow
+# (atlas-admin/photocraft .gitea/workflows/build.yaml) matches exactly
+# `s|^  tag: .*|  tag: <TAG>|`.
+image:
+  repository: registry.atlas.lan/atlas-admin/photocraft
+  tag: v0.1.0
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: gitea-registry
+
+replicaCount: 1
+
+service:
+  port: 80
+
+# The container listens on 8080 (nginx in the upstream Dockerfile) and serves
+# a /healthz endpoint (Dockerfile HEALTHCHECK).
+containerPort: 8080
+
+ingress:
+  enabled: true
+  className: traefik
+  host: photocraft.atlas.lan
+  annotations:
+    cert-manager.io/cluster-issuer: atlas-ca
+  tlsSecretName: photocraft-tls
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 32Mi
+  limits:
+    memory: 256Mi

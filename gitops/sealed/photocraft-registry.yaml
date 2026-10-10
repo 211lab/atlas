@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gitea-registry
+  namespace: photocraft
+spec:
+  encryptedData:
+    .dockerconfigjson: AgCZ8v0cz+/sI6jJ/kkVqB9JQaFZ9lp+yvn5WYZK5ufheFTLbUd3OMXqXDko+hGaNlVbBIUcPFhIGSny8JY1PdCi57Q6D11CiytqN2b5hQA3RzCabfM/M+81QMcYt8eschccRxxzPDP7M2HQhuIcoSUMpI/250wGHzqk8DoFxWF4q3vzmvSePCqFNyLrMiCV0HKJIWmcey2t5Djxj0bjqTh6bNjyJcrNVWNpP2M/5fAlZQ+xmtdcwiJMG+4QKScd7JvMLusLwEfQNi8yJR1xuOqTNuDT6CRlSFfvQwASM3suaZMDUkaFBuQHt8Lls6DLkm5My4LHThaeNBt0GQ3o4TyTObh7Z0oUuc9ZkJ/74O1FkBewlOidtxcXEn1PyeyyA+lBRvmiq8I2tKplr5lDGhOp1qcu4b8lQgFvUbyds2FKVIS6jX4xCNL30UlqWhf2tjPg/HJziCWjfxrYwKSuuqLQovEFN0R5v3GHAcslL2boSTdpoorotyTXiGYFyOVWPSGFw0/eqKFauXtlDQCJxhM47cZumkAjYpbQaLRA54F9qrpWiXflbm8c/ma2E9PmAlQPnK7ichB83z7uOkshA+t8DSkzdiyRIn80FywMc8lke9NC0HduOBrumZSBWvmFEWhnSnwepr+J83zo9M0F8EKC1jTIt2D6cTH03H9PxwjzKy5b5tO0G8S45VasWK/LLxd434L2dhchPgzJnM0UHqglowf2SCMSYHKpnDTnnQqJ1oBTU8Ty4g0zg3hhUoXpuDCErUUZ74Qedu9TwAliYp3dMH/gJTbkIUWRKynqLfCjnnJ7WOAj+qLTlXUazn3iF+FhAZqY/db7wMShQNx/GtLH62btDANeyea/53UzJOaaZNLbR29cx37zI+7l3s0=
+  template:
+    metadata:
+      name: gitea-registry
+      namespace: photocraft
+    type: kubernetes.io/dockerconfigjson

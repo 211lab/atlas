@@ -1,0 +1,6 @@
+apiVersion: v2
+name: photocraft
+description: PhotoCraft (ArtCraft) — Rust image editor, WASM web build served by nginx
+type: application
+version: 0.1.0
+appVersion: "0.6.0"
