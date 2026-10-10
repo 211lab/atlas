@@ -10,13 +10,16 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: odysseus
-  source:
-    repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
-    targetRevision: main
-    path: apps/odysseus/chart
-    helm:
-      releaseName: odysseus
-      valueFiles: [values.yaml]
+  sources:
+    - repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+      targetRevision: main
+      path: apps/odysseus/chart
+      helm:
+        releaseName: odysseus
+        valueFiles: [values.yaml]
+    - repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+      targetRevision: main
+      path: gitops/sealed/odysseus
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true]
