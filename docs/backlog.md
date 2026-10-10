@@ -39,6 +39,7 @@ This page is the **triage surface**; each item that is ready to build gets a
 | **Paperclip** | Open-source AI agent orchestration ("a company of agents") | Cluster-in-repo (upstream image) | CNPG Postgres + `PAPERCLIP_HOME` PVC | `paperclip.atlas.lan` | 2 | [spec](specs/paperclip.md) |
 | **Nextcloud** | File sync and collaboration | Cluster-chart + CNPG | CNPG Postgres + Redis + data PVC (NFS RWX) | `cloud.atlas.lan` | 2 | [spec](specs/nextcloud.md) |
 | **Paperless-ngx** | Document management with OCR (scans, receipts, mail import) | Cluster-in-repo + CNPG | CNPG Postgres + valkey broker + media/consume PVCs (NFS) | `paperless.atlas.lan` | 2 | [spec](specs/paperless-ngx.md) |
+| **Bitwarden (Vaultwarden)** | Password manager for the household (official mobile/desktop clients) **and** the application secrets vault: External Secrets Operator syncs Bitwarden items into cluster Secrets, Reloader redeploys workloads on rotation | Cluster-in-repo (Vaultwarden) + platform operators (ESO, Reloader) | SQLite + attachments on `truenas-nfs` PVC | `vault.atlas.lan` | 2 | [spec](specs/bitwarden.md) |
 | **Frigate** | Network video recorder for cameras | Edge/hardware (deprioritized) | recordings PVC (large, NFS) | `frigate.atlas.lan` (TBD) | 3 | — |
 | **MagicMirror²** | Smart-mirror dashboard | Edge/hardware (deprioritized) | none (runs at the display) | n/a | 3 | — |
 
@@ -51,7 +52,7 @@ pods), stateful data uses `truenas-nfs`, and `*.atlas.lan` DNS is not yet live.
 | Wave | Apps | Rationale |
 | --- | --- | --- |
 | **1** | atlas-landing, code-server, n8n | Low-to-moderate footprint; landing page has no state; code-server and n8n unlock daily use. |
-| **2** | paperclip, nextcloud, paperless-ngx | Stateful and/or heavy; each adds a CNPG cluster; validate the memory budget after Wave 1. |
+| **2** | paperclip, nextcloud, paperless-ngx, bitwarden | Stateful and/or heavy; each adds a CNPG cluster (bitwarden excepted — SQLite on NFS); validate the memory budget after Wave 1. Bitwarden also lands the secrets platform (ESO + Reloader) later apps can consume. |
 | **3** | frigate, magicmirror | Hardware/edge-bound; tracked here but not cluster services today. |
 
 ### Wave 3 notes (edge/hardware, deprioritized)
@@ -70,6 +71,7 @@ pods), stateful data uses `truenas-nfs`, and `*.atlas.lan` DNS is not yet live.
 | Item | Where |
 | --- | --- |
 | Home Assistant | branch `feat/home-assistant-deployment`; [spec](specs/home-assistant.md) |
+| Bitwarden (Vaultwarden + External Secrets) | branch `spec/bitwarden` (worktree `../atlas-bitwarden`); [spec](specs/bitwarden.md) — spec/backlog only, no chart yet |
 | Atlas docs site (`docs.atlas.lan`) | [spec](specs/docs-site-and-infrastructure-review.md); untracked working tree changes |
 
 ## Cross-cutting prerequisites
