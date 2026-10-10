@@ -20,7 +20,7 @@ bridge: vmbr0
 template_storage: local
 template: debian-12-standard_12.12-1_amd64.tar.zst
 
-ip_address: 10.0.0.10/24
+ip_address: 10.0.0.10/8
 gateway: 10.0.0.1
 nameserver: 1.1.1.1
 searchdomain: atlas.lan

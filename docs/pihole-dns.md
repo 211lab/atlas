@@ -56,10 +56,14 @@ This project provisions Pi-hole as an unprivileged **LXC container on the
 | Item | Value |
 | --- | --- |
 | Inventory host | `pihole` |
-| Address | `10.0.0.10` |
+| Address | `10.0.0.10/8` |
 | Hostname | `pihole.atlas.lan` |
 | Host | LXC on Proxmox `memex` |
 | OS | Debian 12 |
+
+The netmask is `/8` because the lab is a flat `10.0.0.0/8` network (matching
+e.g. `hermes` at `10.0.10.1/8`), so Pi-hole treats all `10.x` devices as
+on-link.
 
 Add the host to `inventory.yml` (already added — edit the address for your lab):
 
