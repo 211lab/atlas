@@ -22,23 +22,27 @@ spec:
           serviceAccountName: gitea-dind-prune
           restartPolicy: Never
           containers:
+            # The kubectl image is distroless (no /bin/sh), so the container
+            # command is exec-form and the shell runs on the dind side, where
+            # the prune sequence executes.
             - name: prune
               image: "{{ .Values.prune.image.repository }}:{{ .Values.prune.image.tag }}"
-              command: ["/bin/sh", "-c"]
-              args:
-                - |
-                  set -u
-                  ns="{{ $.Release.Namespace }}"
-                  pod="{{ .Values.prune.runnerPod }}"
-                  container="{{ .Values.prune.runnerContainer }}"
-                  # Every command is individually tolerant: the runner may be busy,
-                  # rescheduled or down; the prune retries next hour.
-                  kubectl -n "$ns" exec "$pod" -c "$container" -- \
-                    docker container prune -f || true
-                  kubectl -n "$ns" exec "$pod" -c "$container" -- \
-                    docker image prune -af --filter "until={{ .Values.prune.imageUnusedFor }}h" || true
-                  kubectl -n "$ns" exec "$pod" -c "$container" -- \
-                    docker builder prune -af --keep-storage {{ .Values.prune.keepStorage }} || true
+              command:
+                - kubectl
+                - -n
+                - {{ $.Release.Namespace }}
+                - exec
+                - {{ .Values.prune.runnerPod }}
+                - -c
+                - {{ .Values.prune.runnerContainer }}
+                - --
+                - sh
+                - -c
+                - >-
+                  docker container prune -f;
+                  docker image prune -af --filter 'until={{ .Values.prune.imageUnusedFor }}h';
+                  docker builder prune -af --keep-storage {{ .Values.prune.keepStorage }};
+                  docker system df
               resources:
                 requests:
                   cpu: {{ .Values.prune.resources.requests.cpu }}
