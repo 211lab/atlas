@@ -6,7 +6,7 @@
 # `s|^  tag: .*|  tag: <TAG>|`.
 image:
   repository: registry.atlas.lan/atlas-admin/photocraft
-  tag: v0.1.0
+  tag: v0.6.1
   pullPolicy: IfNotPresent
 
 imagePullSecrets: gitea-registry
