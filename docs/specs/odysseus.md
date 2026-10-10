@@ -1,6 +1,6 @@
 # Odysseus on Atlas
 
-Status: draft — deployment in progress
+Status: deployed (2026-10-10)
 Owner: —
 Date: 2026-10-10
 
@@ -111,9 +111,12 @@ explicitly approved; retain the previous Git revision for restoration.
 
 ## Open questions / rollout checks
 
-- Validate app health/readiness behavior and runner build/push connectivity during
-  rollout; CI workflow YAML parses locally, but runner execution is unverified.
-- Verify Argo decrypts the namespace-scoped `gitea-registry` SealedSecret.
+- Rollout verified 2026-10-10: Argo `odysseus` and `root` are `Synced/Healthy`;
+  all four Deployments Ready; PVCs Bound; `odysseus-tls` issued by `atlas-ca`;
+  `https://odysseus.atlas.lan/` returns 302 → `/login` (200) with the login page.
+- The Gitea Actions dind scratch cap was raised from 15Gi to 30Gi
+  (`helm/values/gitea-actions.yaml`) because this image plus its build cache
+  exceeded 15Gi and evicted the runner mid-build.
 - First-run model-provider setup is an operator action after rollout.
-- LAN name resolution can require a Pi-hole/hosts entry while external DNS is
-  unavailable.
+- LAN name resolution requires a Pi-hole/hosts entry for `odysseus.atlas.lan`
+  while external DNS is unavailable.
