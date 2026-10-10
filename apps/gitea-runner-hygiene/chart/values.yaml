@@ -1,0 +1,36 @@
+# Gitea runner disk hygiene values (atlas)
+#
+# Layer 2 is the dind daemon.json (buildkit GC) rendered as the
+# `gitea-dind-daemon-json` ConfigMap; the gitea-actions runner mounts it at
+# /etc/docker/daemon.json (helm/values/gitea-actions.yaml). Layer 4 is the
+# prune CronJob, which execs into the runner's dind sidecar.
+
+# The daemon.json buildkit GC keeps the build cache bounded continuously,
+# independent of any build. A malformed daemon.json would keep dockerd from
+# starting (the dind startupProbe would fail), so keep this minimal and only
+# use keys documented for the dockerd builder GC.
+daemonConfig:
+  builder:
+    gc:
+      enabled: true
+      defaultKeepStorage: 10GB
+
+prune:
+  # Layer 4 fallback: an hourly prune inside the dind, for cache that outlives
+  # a killed build. Gently: images unused for two days, builder cache kept
+  # under keepStorage. concurrencyPolicy Forbid stops overlapping jobs.
+  enabled: true
+  schedule: "17 * * * *"
+  runnerPod: gitea-actions-runner-0
+  runnerContainer: dind
+  imageUnusedFor: 48h
+  keepStorage: 10GB
+  image:
+    repository: registry.k8s.io/kubectl
+    tag: v1.34.12
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-dind-daemon-json
+  labels:
+    app.kubernetes.io/name: gitea-runner-hygiene
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  # Read by the dind sidecar at /etc/docker/daemon.json (mounted by the
+  # gitea-actions values). Keep only documented dockerd builder-GC keys: an
+  # unrecognized key stops dockerd from starting and breaks CI.
+  daemon.json: |
+{{ toPrettyJson .Values.daemonConfig | indent 4 }}

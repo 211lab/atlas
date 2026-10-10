@@ -1,0 +1,10 @@
+apiVersion: v2
+name: gitea-runner-hygiene
+description: >-
+  Disk hygiene for the Gitea Actions runner's Docker-in-Docker sidecar: the
+  dind daemon.json (buildkit GC, layer 2) and a periodic prune CronJob with the
+  RBAC to exec into the runner pod (layer 4). See the
+  red-operations-platform docs/operations/ci-disk-hygiene.md runbook.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

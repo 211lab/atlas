@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitea-runner-hygiene
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argoproj.io
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitea
+  source:
+    repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+    targetRevision: main
+    path: apps/gitea-runner-hygiene/chart
+    helm:
+      releaseName: gitea-runner-hygiene
+      valueFiles:
+        - values.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

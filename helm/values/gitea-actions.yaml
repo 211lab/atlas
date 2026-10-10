@@ -25,6 +25,21 @@ statefulset:
     - name: atlas-ca
       configMap:
         name: atlas-ca
+    # CI disk hygiene (layers 2+3; see the platform repo's
+    # red-operations-platform docs/operations/ci-disk-hygiene.md). The dind
+    # sidecar stores images and build cache in its writable layer, which is
+    # charged to the node's ephemeral storage: unbounded growth filled
+    # atlas-k3s-cp1 on 2026-10-10 and the node went NotReady (the site resolves
+    # only to that node). The daemon config enables buildkit's own GC, and the
+    # scratch volume moves docker's storage into a pod-scoped emptyDir with a
+    # hard size limit, so the runner pod — not the node — absorbs the growth.
+    # The ConfigMap is owned by the gitea-runner-hygiene application.
+    - name: dind-daemon-config
+      configMap:
+        name: gitea-dind-daemon-json
+    - name: dind-data
+      emptyDir:
+        sizeLimit: 15Gi
   runner:
     resources:
       requests:
@@ -46,6 +61,12 @@ statefulset:
         mountPath: /etc/docker/certs.d/registry.atlas.lan/ca.crt
         subPath: ca.crt
         readOnly: true
+      - name: dind-daemon-config
+        mountPath: /etc/docker/daemon.json
+        subPath: daemon.json
+        readOnly: true
+      - name: dind-data
+        mountPath: /var/lib/docker
 
 global:
   storageClass: truenas-nfs
