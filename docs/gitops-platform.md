@@ -100,6 +100,11 @@ pointing `*.atlas.lan` at the Traefik ClusterIP. For network-wide discovery with
 a dedicated Pi-hole and automatic Ingress registration, see
 [Dedicated Pi-hole DNS](pihole-dns.md).
 
+Traefik redirects plain HTTP to HTTPS on every `*.atlas.lan` host
+(`gitops/manifests/traefik-redirect.yaml`, a `HelmChartConfig` for the k3s
+Traefik chart), so always use `https://`. Gitea's session cookie is `Secure`;
+served over HTTP the browser drops it and a successful login never persists.
+
 ### Gitea admin password recovery
 
 The admin account is `atlas-admin`. Its declared credentials live in the

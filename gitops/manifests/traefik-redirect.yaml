@@ -1,0 +1,25 @@
+# Redirect all plain-HTTP ingress traffic to HTTPS.
+#
+# Every *.atlas.lan app is served with ROOT_URL https, so Gitea (and others)
+# set Secure session cookies. Served over plain HTTP, the browser drops those
+# cookies, so a successful login never persists. Traefik's `web` entrypoint is
+# the single choke point: redirect it to `websecure` globally.
+#
+# k3s manages Traefik as a HelmChart; a HelmChartConfig merges these values
+# into that release. Applied by the `atlas-config` Application (namespace is
+# set explicitly, like coredns-atlas.yaml).
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      web:
+        http:
+          redirections:
+            entryPoint:
+              to: websecure
+              scheme: https
+              permanent: true
