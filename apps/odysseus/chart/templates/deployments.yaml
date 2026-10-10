@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odysseus
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: odysseus }
+  template:
+    metadata:
+      labels: { app: odysseus }
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecrets }}
+      initContainers:
+        - name: wait-for-dependencies
+          image: busybox:1.37
+          command: [/bin/sh, -c]
+          args:
+            - |
+              until wget -q -O /dev/null http://odysseus-searxng:8080/; do sleep 5; done
+              until wget -q -O /dev/null http://odysseus-chromadb:8000/api/v2/heartbeat; do sleep 5; done
+      containers:
+        - name: odysseus
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ name: http, containerPort: {{ .Values.app.port }} }]
+          env:
+            - { name: AUTH_ENABLED, value: "true" }
+            - { name: LOCALHOST_BYPASS, value: "false" }
+            - { name: ALLOWED_ORIGINS, value: "{{ .Values.app.publicUrl }}" }
+            - { name: SECURE_COOKIES, value: "true" }
+            - { name: OAUTH_REDIRECT_BASE_URL, value: "{{ .Values.app.publicUrl }}" }
+            - { name: APP_PUBLIC_URL, value: "{{ .Values.app.publicUrl }}" }
+            - { name: SEARXNG_INSTANCE, value: http://odysseus-searxng:8080 }
+            - { name: CHROMADB_HOST, value: odysseus-chromadb }
+            - { name: CHROMADB_PORT, value: "8000" }
+            - { name: LLM_HOST, value: localhost }
+            - { name: LLM_HOSTS, value: "" }
+            - { name: NTFY_BASE_URL, value: http://odysseus-ntfy }
+            - { name: DATABASE_URL, value: sqlite:///./data/app.db }
+            - { name: PUID, value: "1000" }
+            - { name: PGID, value: "1000" }
+          volumeMounts:
+            - { name: data, mountPath: /app/data }
+            - { name: data, mountPath: /app/logs, subPath: logs }
+            - { name: data, mountPath: /app/.ssh, subPath: ssh }
+            - { name: data, mountPath: /app/.cache/huggingface, subPath: huggingface }
+            - { name: data, mountPath: /app/.local, subPath: local }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources: {{- toYaml .Values.app.resources | nindent 12 }}
+      volumes: [{ name: data, persistentVolumeClaim: { claimName: odysseus-data } }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odysseus-chromadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: odysseus-chromadb }
+  template:
+    metadata:
+      labels: { app: odysseus-chromadb }
+    spec:
+      containers:
+        - name: chromadb
+          image: {{ .Values.chromadb.image }}
+          env: [{ name: ANONYMIZED_TELEMETRY, value: "FALSE" }]
+          ports: [{ name: http, containerPort: 8000 }]
+          volumeMounts: [{ name: data, mountPath: /chroma/chroma }]
+          readinessProbe:
+            httpGet: { path: /api/v2/heartbeat, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources: {{- toYaml .Values.chromadb.resources | nindent 12 }}
+      volumes: [{ name: data, persistentVolumeClaim: { claimName: odysseus-chromadb } }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odysseus-searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: odysseus-searxng }
+  template:
+    metadata:
+      labels: { app: odysseus-searxng }
+    spec:
+      containers:
+        - name: searxng
+          image: {{ .Values.searxng.image }}
+          command: [/bin/sh, -c]
+          args:
+            - |
+              set -eu
+              if [ ! -s /etc/searxng/settings.yml ] || grep -q '__SEARXNG_SECRET__' /etc/searxng/settings.yml; then
+                secret="$$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+                sed "s|__SEARXNG_SECRET__|$$secret|g" /config/settings.yml.template > /etc/searxng/settings.yml
+              fi
+              exec /usr/local/searxng/entrypoint.sh
+          env: [{ name: SEARXNG_BASE_URL, value: http://odysseus-searxng:8080/ }]
+          ports: [{ name: http, containerPort: 8080 }]
+          volumeMounts:
+            - { name: config, mountPath: /etc/searxng }
+            - { name: settings, mountPath: /config/settings.yml.template, subPath: settings.yml.template, readOnly: true }
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources: {{- toYaml .Values.searxng.resources | nindent 12 }}
+      volumes:
+        - { name: config, persistentVolumeClaim: { claimName: odysseus-searxng } }
+        - { name: settings, configMap: { name: odysseus-searxng-config } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odysseus-ntfy
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: odysseus-ntfy }
+  template:
+    metadata:
+      labels: { app: odysseus-ntfy }
+    spec:
+      containers:
+        - name: ntfy
+          image: {{ .Values.ntfy.image }}
+          args: [serve]
+          env: [{ name: NTFY_BASE_URL, value: "{{ .Values.app.publicUrl }}" }]
+          ports: [{ name: http, containerPort: 80 }]
+          volumeMounts: [{ name: cache, mountPath: /var/cache/ntfy }]
+          resources: {{- toYaml .Values.ntfy.resources | nindent 12 }}
+      volumes: [{ name: cache, persistentVolumeClaim: { claimName: odysseus-ntfy } }]

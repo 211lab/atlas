@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gitea-registry
+  namespace: odysseus
+spec:
+  encryptedData:
+    .dockerconfigjson: AgAZLZp5qTahZ7ObLtK9AWFIVuPY91lydNkZgTRxKebz636CKj0WEnM/Q/V8VV0b1ZsIlGlhKr10mnCiK5CacfA67vNENGNiprocOAtJyw6NzX+yh/YNh0Mm5vQFIsXiF8RReYQvj9f9/8mFqsvtQ5xkL97pQDnvmNXn12JT3xD7IxIedvtdLudPGmCF0lJhWxbKfM8sDWNPD18ZBAMT1mmFimgYRtzXo+6aWzxMIe5XYHP0MaOysluZOdBABytc6YF/ozDH61qXo+6ARVQoPuu9GvpdQ/hHY24s3yeZHB2MBavqLXPYSBqMxVTW9cSe9KtB+tyRJPO4NE9DDLAC6VXxlf7I8F1nMjms6Nsdz1dmi37uh0Vdwnu4tDRwGhs+DmI5043aMCbr75WUe62uiAX8qMlwSaYurxqkMoAMGG04UWxZZpo16S+DislEHju9p6U1/xKi7CyFNn44V6S260lUE11y4Fz+Bq/Ej6qfNLilxI9srd7hr4aOfke7Tu4O3ueFsjAE8s3OlcMwoBVsOXaSraiPOmHhn6HVSAZFe+ovwXoRzWo6APDL0TJoVqixRrC2vnkYAPHlEJD88twP7THcU/hLXRIptjVBz90n6cVAnRuUCmTb4gtp//9IgbdxrAWdANOXyYMAjiXl2IaN5lWqhuQyYXtTWQEMkZM2vVDaTwZIZyO1HV24RGxp0pmsA38W9DTWYOH9Y1/wwJcs+wu2ZqPIR/51OX0XcHLY6Jb4J+xEvurfKMH/j02D6Zrn1EVgeaZzG2eu/cbP9nA5VLp0Q+Mvbiy1D4Ag6MJ3TREWImzvuNSemh4htKiegHyyGxdAEjeJSJgh4oGZy3BuTb0/VtDPArAstGh6b8q6WrPMFkl1E6nZUMML/gFqZbdIpn0nYRyZy1kPcBku4HecXZGYx3hsQNxERWk++hbVM+9PC8T2P9KlfxAbzBgbga+RV0WMpo0=
+  template:
+    metadata:
+      name: gitea-registry
+      namespace: odysseus
+    type: kubernetes.io/dockerconfigjson

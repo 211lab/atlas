@@ -1,0 +1,47 @@
+image:
+  repository: registry.atlas.lan/atlas-admin/odysseus
+  tag: sha-91ce56e8a722dc5fdef675fb3597a7eadf1af362
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: gitea-registry
+
+app:
+  port: 7000
+  publicUrl: https://odysseus.atlas.lan
+  resources:
+    requests: { cpu: 250m, memory: 768Mi }
+    limits: { memory: 3Gi }
+  persistence:
+    size: 20Gi
+    storageClassName: truenas-nfs
+
+chromadb:
+  image: chromadb/chroma:1.0.20
+  persistence:
+    size: 10Gi
+    storageClassName: truenas-nfs
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 1Gi }
+
+searxng:
+  image: docker.io/searxng/searxng:2026.9.25-12f8b6515@sha256:5286edb35782454ab8a102c5eff6b54bff745853191b46aeead95f225aa6dfb6
+  persistence:
+    size: 1Gi
+    storageClassName: truenas-nfs
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+ntfy:
+  image: binwiederhier/ntfy:v2.11.0
+  persistence:
+    size: 1Gi
+    storageClassName: truenas-nfs
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+
+ingress:
+  host: odysseus.atlas.lan
+  tlsSecretName: odysseus-tls

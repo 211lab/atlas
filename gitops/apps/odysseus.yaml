@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: odysseus
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: odysseus
+  source:
+    repoURL: http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git
+    targetRevision: main
+    path: apps/odysseus/chart
+    helm:
+      releaseName: odysseus
+      valueFiles: [values.yaml]
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
