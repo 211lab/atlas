@@ -80,6 +80,10 @@ docs/adr/                    architecture decision records
   cluster-scoped objects (ClusterIssuer, StorageClass, CoreDNS ConfigMap, …).
 - Prefix Argo CD Applications with `argocd.argoproj.io/sync-wave` when one must
   come first (e.g. a CRD-providing operator before its CRs).
+- **Diagrams**: every Mermaid diagram stays at 5 elements or fewer. Labels and
+  connections do not count toward the limit. Need more? Split into two chained
+  diagrams (the last element of one repeats as the first of the next). Check
+  with `python3 scripts/audit_diagrams.py` — it must print zero over the limit.
 
 ## Validate before you commit
 
