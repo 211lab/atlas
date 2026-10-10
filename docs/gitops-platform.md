@@ -100,6 +100,45 @@ pointing `*.atlas.lan` at the Traefik ClusterIP. For network-wide discovery with
 a dedicated Pi-hole and automatic Ingress registration, see
 [Dedicated Pi-hole DNS](pihole-dns.md).
 
+### Gitea admin password recovery
+
+The admin account is `atlas-admin`. Its declared credentials live in the
+`gitea-admin` SealedSecret (`gitops/sealed/gitea-admin.yaml`, keys `username`,
+`password`, `email`), wired into the chart via `admin.existingSecret`. Read the
+live values from the cluster:
+
+```sh
+kubectl -n gitea get secret gitea-admin \
+  -o jsonpath='{.data.username}{"\n"}{.data.password}{"\n"}' \
+  | while IFS= read -r line; do printf '%s\n' "$(echo "$line" | base64 -d)"; done
+```
+
+Log in at `https://git.atlas.lan` (hosts/Pi-hole entry, or `--resolve` a node
+IP; the certificate is issued by the internal `atlas-ca`). Verify the pair
+against the API before relying on it — `is_admin` must be `true`:
+
+```sh
+curl -ksS --resolve git.atlas.lan:443:10.0.0.110 \
+  -u "<username>:<password>" https://git.atlas.lan/api/v1/user \
+  | jq '{login, is_admin}'
+```
+
+If login fails, the database password has drifted from the SealedSecret (for
+example after a change through the UI). The Secret is the bootstrap/declared
+value, not a live mirror — Gitea's database is authoritative once a password
+has been changed. Reset it in place, then re-seal the same value so git and the
+cluster agree again:
+
+```sh
+kubectl -n gitea exec deploy/gitea -- \
+  gitea admin user change-password -u atlas-admin -p '<new-password>'
+```
+
+The command sets the must-change flag on next login; add
+`--must-change-password=false` when recovering your own access. Re-seal the new
+password into `gitops/sealed/gitea-admin.yaml` per
+[Sealing secrets](sealing-secrets.md) and let Argo CD reconcile.
+
 ### Git over SSH
 
 Gitea's SSH server is exposed on **port 2222** via the `gitea-ssh-lb`
