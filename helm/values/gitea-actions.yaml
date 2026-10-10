@@ -39,7 +39,12 @@ statefulset:
         name: gitea-dind-daemon-json
     - name: dind-data
       emptyDir:
-        sizeLimit: 15Gi
+        # Raised from 15Gi on 2026-10-10: the Odysseus image (~12GiB) plus its
+        # build cache peaked above 15Gi and the runner pod was evicted mid-build
+        # ("Usage of EmptyDir volume dind-data exceeds the limit 15Gi"). The cap
+        # stays bounded so the pod, not the node, absorbs growth; cp1 had ~43GiB
+        # free at the time. Revisit if the node's free ephemeral storage drops.
+        sizeLimit: 30Gi
   runner:
     resources:
       requests:
