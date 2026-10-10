@@ -40,7 +40,7 @@ spec:
                 - -c
                 - >-
                   docker container prune -f;
-                  docker image prune -af --filter 'until={{ .Values.prune.imageUnusedFor }}h';
+                  docker image prune -af --filter 'until={{ .Values.prune.imageUnusedFor }}';
                   docker builder prune -af --keep-storage {{ .Values.prune.keepStorage }};
                   docker system df
               resources:
