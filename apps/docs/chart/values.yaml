@@ -1,7 +1,7 @@
 image:
   repository: registry.atlas.lan/atlas-admin/docs
-  tag: sha-8e9432232946a6a3ad0b1cd30c56c79a448bd8d7-run-135-1
-  digest: sha256:68206b44184d345a5611d4bd5ac9702ebe341051ef552820152143e2bcbe5d7b
+  tag: sha-da0d4d3cbd34fefa8aa571cca8eb8d82ebf19d59-run-136-1
+  digest: sha256:8d41fa749cdffe9b25c49ca59f9fde09cf17d291164b90c3a28ec08a9c07b682
   pullPolicy: IfNotPresent
 
 imagePullSecrets: gitea-registry
