@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atlas-fleet-overview-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  atlas-fleet-overview.json: |
+    {
+      "annotations": {"list": []},
+      "description": "Central fleet view for all currently scraped Kubernetes nodes and Atlas Proxmox hosts, plus Kubernetes workload metrics and explicit coverage gaps.",
+      "editable": false,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "id": 1,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "count(up{job=~\"node-exporter|atlas-proxmox-node-exporter\"} == 1)", "refId": "A"}],
+          "title": "Scraped hosts online (of 8)",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "id": 2,
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "count(up{job=~\"node-exporter|atlas-proxmox-node-exporter\"} == 0) or vector(0)", "refId": "A"}],
+          "title": "Scraped hosts down",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "id": 3,
+          "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "100 * (1 - avg by (job, instance) (rate(node_cpu_seconds_total{job=~\"node-exporter|atlas-proxmox-node-exporter\", mode=\"idle\"}[5m])))", "legendFormat": "{{job}} {{instance}}", "refId": "A"}],
+          "title": "CPU used — Kubernetes nodes and PVE hosts",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "id": 4,
+          "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "100 * (1 - node_memory_MemAvailable_bytes{job=~\"node-exporter|atlas-proxmox-node-exporter\"} / node_memory_MemTotal_bytes{job=~\"node-exporter|atlas-proxmox-node-exporter\"})", "legendFormat": "{{job}} {{instance}}", "refId": "A"}],
+          "title": "Memory used — Kubernetes nodes and PVE hosts",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "id": 5,
+          "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "100 * (1 - node_filesystem_avail_bytes{job=~\"node-exporter|atlas-proxmox-node-exporter\", mountpoint=\"/\", fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{job=~\"node-exporter|atlas-proxmox-node-exporter\", mountpoint=\"/\", fstype!~\"tmpfs|overlay\"})", "legendFormat": "{{job}} {{instance}}", "refId": "A"}],
+          "title": "Root filesystem used — Kubernetes nodes and PVE hosts",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "id": 6,
+          "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{container!=\"\", image!=\"\"}[5m]))", "legendFormat": "{{namespace}}", "refId": "A"}],
+          "title": "Container CPU by namespace",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+          "id": 7,
+          "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "sum by (namespace) (container_memory_working_set_bytes{container!=\"\", image!=\"\"})", "legendFormat": "{{namespace}}", "refId": "A"}],
+          "title": "Container memory by namespace",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {}, "overrides": []},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+          "id": 8,
+          "options": {"showHeader": true, "sortBy": [{"desc": true, "displayName": "Value"}]},
+          "targets": [{"expr": "up{job=~\"node-exporter|atlas-proxmox-node-exporter\"}", "format": "table", "instant": true, "refId": "A"}],
+          "title": "Host scrape status — Kubernetes nodes and PVE hosts",
+          "type": "table"
+        },
+        {
+          "datasource": {"type": "text", "uid": "-- Grafana --"},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+          "id": 9,
+          "options": {"content": "## Coverage gaps\n\nThis dashboard currently aggregates the four Kubernetes nodes and four Atlas-cluster Proxmox hosts.\n\n**Not yet scraped:** Memex (`10.0.0.105`), Minsky (`10.0.0.106`), Pi-hole (`10.0.0.10`), Hermes (`10.0.10.1`), and TrueNAS (`10.0.10.26`). Network appliances are not yet in the explicit target inventory.\n\nAdd exporters or supported device integrations before treating these systems as monitored. This dashboard does not discover targets automatically.", "mode": "markdown"},
+          "title": "Known but not yet monitored",
+          "type": "text"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 41,
+      "tags": ["atlas", "fleet", "infrastructure"],
+      "time": {"from": "now-6h", "to": "now"},
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Atlas Fleet Overview",
+      "uid": "atlas-fleet-overview",
+      "version": 1
+    }
