@@ -25,7 +25,7 @@ ci_userdata_enabled: true
 ci_userdata_storage: local
 ci_userdata_dir: /var/lib/vz/snippets
 ci_userdata_file: "{{ vmid_resolved }}-user-data.yml"
-dns_server: 10.0.0.1
+dns_server: 10.0.0.10
 ipconfig0: ip=dhcp
 
 start_vm: true

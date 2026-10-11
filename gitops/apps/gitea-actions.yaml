@@ -28,14 +28,44 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-  # The StatefulSet was originally helm-installed, so its API-defaulted fields
-  # (revisionHistoryLimit, podManagementPolicy, updateStrategy, retention policy)
-  # are owned by the stale `helm` managedFields manager and reappear as drift
-  # even though the desired manifest never sets them. Ignore fields owned by that
-  # manager so the Application reports Synced; the chart values remain the source
-  # of truth for everything Argo applies.
+  # This StatefulSet predates Argo ownership. Its live spec retains Kubernetes
+  # defaults and Helm-era fields omitted by the chart; ignore only those exact
+  # fields so chart-managed runner settings remain compared and reconciled.
   ignoreDifferences:
     - group: apps
       kind: StatefulSet
-      managedFieldsManagers:
-        - helm
+      name: gitea-actions-runner
+      namespace: gitea
+      jsonPointers:
+        - /spec/persistentVolumeClaimRetentionPolicy
+        - /spec/podManagementPolicy
+        - /spec/revisionHistoryLimit
+        - /spec/serviceName
+        - /spec/template/spec/containers/0/terminationMessagePath
+        - /spec/template/spec/containers/0/terminationMessagePolicy
+        - /spec/template/spec/dnsPolicy
+        - /spec/template/spec/initContainers/0/imagePullPolicy
+        - /spec/template/spec/initContainers/0/resources
+        - /spec/template/spec/initContainers/0/terminationMessagePath
+        - /spec/template/spec/initContainers/0/terminationMessagePolicy
+        - /spec/template/spec/initContainers/1/livenessProbe/failureThreshold
+        - /spec/template/spec/initContainers/1/livenessProbe/periodSeconds
+        - /spec/template/spec/initContainers/1/livenessProbe/successThreshold
+        - /spec/template/spec/initContainers/1/livenessProbe/timeoutSeconds
+        - /spec/template/spec/initContainers/1/startupProbe/failureThreshold
+        - /spec/template/spec/initContainers/1/startupProbe/periodSeconds
+        - /spec/template/spec/initContainers/1/startupProbe/successThreshold
+        - /spec/template/spec/initContainers/1/startupProbe/timeoutSeconds
+        - /spec/template/spec/initContainers/1/terminationMessagePath
+        - /spec/template/spec/initContainers/1/terminationMessagePolicy
+        - /spec/template/spec/schedulerName
+        - /spec/template/spec/securityContext
+        - /spec/template/spec/terminationGracePeriodSeconds
+        - /spec/template/spec/volumes/0/configMap/defaultMode
+        - /spec/template/spec/volumes/2/configMap/defaultMode
+        - /spec/template/spec/volumes/3/configMap/defaultMode
+        - /spec/updateStrategy
+        - /spec/volumeClaimTemplates/0/apiVersion
+        - /spec/volumeClaimTemplates/0/kind
+        - /spec/volumeClaimTemplates/0/spec/volumeMode
+        - /spec/volumeClaimTemplates/0/status
