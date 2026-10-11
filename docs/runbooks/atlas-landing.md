@@ -31,7 +31,7 @@ by adding:
 ```yaml
 gethomepage.dev/enabled: "true"
 gethomepage.dev/name: Display Name
-gethomepage.dev/group: Platform   # Platform | Apps | Media | Home | Docs
+gethomepage.dev/group: Platform   # infra tier: Platform | Services | Apps
 gethomepage.dev/description: Short description
 gethomepage.dev/icon: immich.png  # optional, from selfh.st/dashboard-icons
 ```

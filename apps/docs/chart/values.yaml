@@ -21,7 +21,7 @@ ingress:
     traefik.ingress.kubernetes.io/router.tls: "true"
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: Docs
-    gethomepage.dev/group: Docs
+    gethomepage.dev/group: Services
     gethomepage.dev/description: Atlas platform documentation
   tlsSecretName: docs-tls
 

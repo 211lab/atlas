@@ -26,19 +26,13 @@ data:
     layout:
       Platform:
         style: row
-        columns: 4
+        columns: 3
+      Services:
+        style: row
+        columns: 3
       Apps:
         style: row
         columns: 4
-      Media:
-        style: row
-        columns: 3
-      Home:
-        style: row
-        columns: 3
-      Docs:
-        style: row
-        columns: 3
   services.yaml: |
     # Intentionally empty: services are discovered from Ingress annotations
     # (gethomepage.dev/enabled) so the directory tracks the cluster.

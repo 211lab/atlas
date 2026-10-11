@@ -7,7 +7,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.middlewares: home-assistant-home-assistant-ipallow@kubernetescrd
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: Home Assistant
-    gethomepage.dev/group: Home
+    gethomepage.dev/group: Services
     gethomepage.dev/icon: home-assistant.png
     gethomepage.dev/description: Home automation
 spec:
