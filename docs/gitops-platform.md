@@ -12,8 +12,10 @@
 The table retains the historical platform/runbook snapshot recorded as
 2026-10-07; it is not a complete current tenant inventory. See the
 [2026-10-07 read-only review](infrastructure-review.md) for dated live image
-tags, all 17 namespaces, 14 live Argo apps, Helm-managed components and gaps.
-In particular Redop live tags differ from this checkout; docs is declared only.
+tags and its [2026-10-11 refresh](infrastructure-review.md#2026-10-11-sync-remediation-and-refresh)
+for the current counts: 21 namespaces, 19 live Argo apps (all Synced/Healthy
+after the DNS remediation), Helm-managed components and gaps. The docs site is
+now live at `https://docs.atlas.lan/`.
 
 | Component | Chart | Version | Namespace | Access |
 | --- | --- | --- | --- | --- |
@@ -96,7 +98,9 @@ atlas/
 
 Hostnames resolve from the lab network via Pi-hole and inside the cluster via a
 CoreDNS `coredns-custom` ConfigMap (`gitops/manifests/coredns-atlas.yaml`)
-pointing `*.atlas.lan` at the Traefik ClusterIP. For network-wide discovery with
+that answers `git`/`registry`/`argocd.atlas.lan` with the Traefik ClusterIP and
+forwards any other `atlas.lan` name to Pi-hole (added 2026-10-11 so node and
+pod image pulls resolve the registry). For network-wide discovery with
 a dedicated Pi-hole and automatic Ingress registration, see
 [Dedicated Pi-hole DNS](pihole-dns.md).
 
@@ -343,8 +347,10 @@ kubectl -n argocd annotate application <name> argocd.argoproj.io/refresh=hard --
 - **`docker login` vs config.json:** `docker login` fails against Gitea's token
   registry during credential validation; the workflow writes
   `~/.docker/config.json` directly instead.
-- **gitea-actions OutOfSync:** Argo CD reports the runner StatefulSet OutOfSync
-  due to Helm-generated fields; it is healthy and functional.
+- **gitea-actions drift (resolved 2026-10-11):** the runner StatefulSet
+  reported OutOfSync over Helm-era/API-defaulted fields. `gitops/apps/gitea-actions.yaml`
+  now ignores only those exact fields (JSON pointers); Argo reports it
+  Synced/Healthy and chart-managed runner settings stay compared.
 - **Gitea pod must be `Recreate`:** Gitea is a single-writer app on a shared PVC;
   the default `RollingUpdate` deadlocks on the leveldb lock. `strategy.type:
   Recreate` is set in `helm/values/gitea.yaml`.

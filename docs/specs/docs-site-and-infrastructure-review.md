@@ -67,3 +67,4 @@ Serve the Atlas documentation as a MkDocs build at **https://docs.atlas.lan** an
 - Verify existing Gitea Actions credential names and namespace-local registry pull-secret provisioning; do not expose or fabricate credentials.
 - Reachability/authorization of every inventoried Proxmox/standalone host is unproven until read-only inspection.
 - Existing DNS resolves docs.atlas.lan but live reconnaissance found no docs ingress and an HTTP 404; the service is not yet deployed.
+  **Status 2026-10-11:** deployed and live — the docs Application/ingress/certificate exist and `https://docs.atlas.lan/` returns 200 (see the review's 2026-10-11 refresh).

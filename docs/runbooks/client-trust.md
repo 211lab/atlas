@@ -111,7 +111,8 @@ You have a few options:
   10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan redop.atlas.lan
   ```
 - **Configure your device to use the Pi-hole DNS server:**
-  Once the Pi-hole (`10.0.0.107`) is provisioned and configured for `atlas.lan` resolution (as per ADR 0001), you can configure your device to use it as its primary DNS server.
+  The Pi-hole (`10.0.0.10`, `pihole.atlas.lan`) is live and resolves
+  `*.atlas.lan` network-wide; point your device's primary DNS at it.
 
 ## 4. Verify
 

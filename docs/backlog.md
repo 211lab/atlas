@@ -33,7 +33,7 @@ This page is the **triage surface**; each item that is ready to build gets a
 
 | App | What it is | Style | DB / storage | Ingress | Wave | Spec |
 | --- | --- | --- | --- | --- | --- | --- |
-| **Atlas landing page** | Root-domain graffiti wordmark "Atlas" | Cluster-in-repo (static nginx) | none | `atlas.lan` (apex) + `www.atlas.lan` | 1 | [spec](specs/atlas-landing.md) |
+| **Atlas landing page** | Root-domain graffiti wordmark "Atlas" — **deployed 2026-10-08** (`v0.2.0`) | Cluster-in-repo (static nginx) | none | `atlas.lan` (apex) + `www.atlas.lan` | 1 | [spec](specs/atlas-landing.md) |
 | **code-server** | VS Code in the browser | Cluster-in-repo (upstream image) | workspace PVC (`truenas-nfs`) | `code.atlas.lan` | 1 | [spec](specs/code-server.md) |
 | **n8n** | Workflow automation | Cluster-in-repo + CNPG | CNPG Postgres + `.n8n` PVC | `n8n.atlas.lan` | 1 | [spec](specs/n8n.md) |
 | **Paperclip** | Open-source AI agent orchestration ("a company of agents") | Cluster-in-repo (upstream image) | CNPG Postgres + `PAPERCLIP_HOME` PVC | `paperclip.atlas.lan` | 2 | [spec](specs/paperclip.md) |
@@ -46,7 +46,8 @@ This page is the **triage surface**; each item that is ready to build gets a
 
 Sequencing is driven by the cluster's real constraints: memory is the tight
 resource (control planes already run hot; a single worker node carries most
-pods), stateful data uses `truenas-nfs`, and `*.atlas.lan` DNS is not yet live.
+pods), stateful data uses `truenas-nfs`, and `*.atlas.lan` DNS is live
+(Pi-hole wildcard plus ExternalDNS registration, 2026-10-11).
 
 | Wave | Apps | Rationale |
 | --- | --- | --- |
@@ -67,20 +68,20 @@ pods), stateful data uses `truenas-nfs`, and `*.atlas.lan` DNS is not yet live.
 
 ## In progress
 
-| Item | Where |
-| --- | --- |
-| Home Assistant | branch `feat/home-assistant-deployment`; [spec](specs/home-assistant.md) |
-| Atlas docs site (`docs.atlas.lan`) | [spec](specs/docs-site-and-infrastructure-review.md); untracked working tree changes |
+- **Deployed since the last triage pass** (see [applications](applications.md)
+  and the [2026-10-11 review refresh](infrastructure-review.md)): Home
+  Assistant (`2026.9.4`) and the docs site (`docs.atlas.lan`, live) — removed
+  from this list once their Definition of done is re-verified.
 
 ## Cross-cutting prerequisites
 
 These apply across the backlog and should be resolved before or alongside the
 waves that depend on them.
 
-- **DNS and reachability.** ADR 0001 is accepted and declared but not live: the
-  Pi-hole host (`10.0.0.107`) is unprovisioned and the ExternalDNS SealedSecret
-  is a placeholder. Until then new `.atlas.lan` hosts resolve only in-cluster
-  (CoreDNS `coredns-custom`) and via workstation `/etc/hosts` entries.
+- **DNS and reachability — live (2026-10-11).** Pi-hole (`10.0.0.10`, LXC on
+  Memex) resolves `*.atlas.lan` network-wide, ExternalDNS registers Ingress
+  hosts automatically, and CoreDNS forwards unknown `atlas.lan` names to
+  Pi-hole. New `.atlas.lan` hosts need no manual DNS.
 - **PostgreSQL.** Use the CNPG operator (`gitops/apps/cnpg.yaml`) for every app
   database so backup, failover, and credentials follow one pattern.
 - **Storage.** Stateful data belongs on `truenas-nfs` (RWX-capable); `local-path`

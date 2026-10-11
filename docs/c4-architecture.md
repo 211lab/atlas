@@ -58,7 +58,9 @@ The core four-host PVE cluster runs three k3s servers and one agent. Memex and
 Minsky are standalone PVE hosts; there is no six-host Corosync cluster.
 Platform containers include ingress, DNS, forge/registry/CI, Argo, certificate
 and secret controllers, monitoring and CNPG. The review enumerates all 17
-namespaces, including non-platform applications and empty system/legacy ones.
+namespaces observed on 2026-10-07; its 2026-10-11 refresh adds `atlas-landing`,
+`docs`, `odysseus` and `photocraft` (21 total, 19 Applications, all
+Synced/Healthy).
 
 ### Forge and build units
 
@@ -158,8 +160,9 @@ flowchart LR
     C -->|HTTPS 443| T
 ```
 
-DNS returns destination addresses; Pi-hole does not proxy HTTP. The live docs
-name resolved but had no live route. See [DNS architecture](atlas-dns.md) for
+DNS returns destination addresses; Pi-hole does not proxy HTTP. The docs name
+has resolved and served over HTTPS since 2026-10-11. See
+[DNS architecture](atlas-dns.md) for
 wildcards, static records, ExternalDNS upsert-only semantics and unverified
 DHCP/tailnet adoption. `.local` mDNS is not the chosen service namespace.
 

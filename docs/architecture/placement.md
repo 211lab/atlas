@@ -26,7 +26,8 @@ flowchart LR
 ```
 
 The repeated VIP is one shared API endpoint, not three different services.
-Each control plane is 2 vCPU/4 GiB configured and also schedules application
+Each control plane is 4 vCPU/12 GiB configured (resized from 2 vCPU/4 GiB on
+2026-10-10) and also schedules application
 pods. Keep at least two control planes online; PVE requires three of its four
 votes independently. Live pod placement is in the review, not implied by the
 VIP arrows.
@@ -39,8 +40,11 @@ flowchart LR
     W -->|NFS mounts| N["TrueNAS .26"]
 ```
 
-The worker is 2 vCPU/6 GiB configured; it carries CI and monitoring plus Immich
-ML. It is not the exclusive application scheduling target. cp1/cp2/cp3 also
+The worker is 4 vCPU/12 GiB configured (resized from 2 vCPU/6 GiB on
+2026-10-10). It carries monitoring, Immich (server and ML) and the newer
+apps (`odysseus`, `photocraft`, one `dave-study` replica); the Gitea Actions
+runner currently sits on cp1. It is not the exclusive application scheduling
+target. cp1/cp2/cp3 also
 mount NFS. The single local Immich database is tied to cp1, not this worker.
 
 ## Standalone Memex

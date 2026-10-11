@@ -263,6 +263,57 @@ key backups are necessary to break that dependency. Follow the
 [secret-key](sealing-secrets.md) and [Immich](runbooks/immich.md) runbooks with
 fresh authorization; no recovery action was run by this review.
 
+## 2026-10-11 sync remediation and refresh
+
+A follow-up collection (workstation clock 2026-10-11 ~02:10 UTC) fixed the
+drift above and re-collected the affected inventory. Changes were made through
+git (commits `b9657a0`, `a0b6b35` on the forge); nothing was applied imperatively
+except the four k3s guests' own DNS resolver settings, which are host
+configuration outside the cluster's GitOps scope.
+
+**Root cause of the 2026-10-10/11 image-pull outage (K/G/H):** the k3s guests'
+resolvers pointed at the router (`10.0.0.1`), which answered no `atlas.lan`
+names, so node containerd could not resolve `registry.atlas.lan`. The CoreDNS
+`coredns-custom` `atlas.lan` server block also had no upstream, so in-cluster
+clients could only resolve the four hardcoded host entries. Fixes:
+
+- `gitops/manifests/coredns-atlas.yaml` now adds `forward . 10.0.0.10` inside
+  the `atlas.lan` server block; unknown `atlas.lan` names forward to Pi-hole
+  (K: live ConfigMap verified after `atlas-config` hard refresh).
+- All four k3s guests (VMs 201–204) had `qm ... --nameserver` set to
+  `10.0.0.10`, `/etc/netplan/50-cloud-init.yaml` updated and applied in-guest,
+  and the cloud-init role default `dns_server` changed to `10.0.0.10` (H + D).
+  Verified: `getent` resolves `registry.atlas.lan` on every guest; an in-pod
+  lookup from `redop-api` resolves it to the Traefik ClusterIP (K).
+
+**Resulting Argo state (K):** every Application is `Synced / Healthy`, including
+`redop` (its `redop-migrate` PreSync hook had looped on image pulls; it now
+completed in 52s and the live tag is `sha-54aa2c7`, matching this checkout),
+`gitea-actions` (the ignoreDifferences was replaced with explicit JSON pointers
+for the API-defaulted/Helm-era StatefulSet fields, verified against the Argo
+managed-resources diff), and `docs` (its `ImagePullBackOff` pod pulled and
+reached Ready once DNS worked).
+
+**Counts after this refresh (K):** 21 namespaces (adds `atlas-landing`,
+`docs`, `odysseus`, `photocraft` to the 17 above), 19 live Applications (adds
+`atlas-landing`, `docs`, `odysseus`, `photocraft`, `gitea-runner-hygiene` to the
+14), 11 Ingresses (adds `atlas.lan`/`www.atlas.lan`, `docs.atlas.lan`,
+`odysseus.atlas.lan`, `photocraft.atlas.lan`), and 14 bound PVCs totaling
+251 GiB requested (the four `odysseus` claims add 32 GiB NFS). New live
+workloads: `atlas-landing v0.2.0` (cp3), `docs` (immutable digest image, cp1),
+`photocraft v0.6.1` (worker1), and `odysseus` (main app, ChromaDB `1.0.20`,
+ntfy `v2.11.0`, searxng digest-pinned — all on worker1 per its pin). `dave-study`
+now runs `v0.2.2` on worker1/cp3.
+
+**Other live observations (K/G/H):** node kernel is now `6.8.0-146-generic`;
+guest root use is cp1 44% (50G), cp2 49% (38G), cp3 **74%** (38G), worker1 28%
+(58G — the worker's 84% finding is resolved by the resize). `kubectl top`
+shows control-plane memory 25–30% and worker 49% after the 4 vCPU/12 GiB
+resize. Monitoring retains two `Failed` Grafana pods from superseded
+ReplicaSets (harmless leftovers; the Deployment is 1/1). `docs.atlas.lan`
+resolves via Pi-hole and returns **HTTP 200** through node `.110`, with a Ready
+`atlas-ca` certificate — the 404/no-ingress finding above is superseded.
+
 ## Access gaps and completion boundary
 
 - Agent SSH `.155` timed out; TrueNAS `.26` SSH denied the authorized key.
@@ -299,5 +350,7 @@ renders SVGs inside closed shadow roots, so checking only host HTML misses them.
 The verification retained those roots through `attachShadow` instrumentation;
 standalone rendering alone is still insufficient. Mermaid remains CDN-dependent,
 so local success does not establish offline availability or live deployment.
-The live observation remains blocked: no docs ingress
-and HTTP 404.
+The live observation was blocked at collection: no docs ingress
+and HTTP 404. Superseded on 2026-10-11: the docs Application, ingress and
+certificate are live and `https://docs.atlas.lan/` returns 200 (see the
+2026-10-11 refresh above).

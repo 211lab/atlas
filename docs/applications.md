@@ -29,7 +29,10 @@ the repository skill `.opencode/skills/atlas-deploy-app/SKILL.md`.
 | 3f-app | in-repo | `apps/3f-app/chart` | `gitops/apps/3f-app.yaml` | `3f-app` | `3fapp.atlas.lan` |
 | dave-study | in-repo | `apps/dave-study/chart` | `gitops/apps/dave-study.yaml` | `dave-study` | `dave-study.atlas.lan` |
 | home-assistant | in-repo | `apps/home-assistant/chart` | `gitops/apps/home-assistant.yaml` | `home-assistant` | `home-assistant.atlas.lan` |
-| docs (declared only) | in-repo | `apps/docs/chart` | `gitops/apps/docs.yaml` | `docs` (not live) | `docs.atlas.lan` (DNS only; no live ingress) |
+| atlas-landing | in-repo | `apps/atlas-landing/chart` | `gitops/apps/atlas-landing.yaml` | `atlas-landing` | `atlas.lan`, `www.atlas.lan` |
+| docs | in-repo | `apps/docs/chart` | `gitops/apps/docs.yaml` | `docs` | `docs.atlas.lan` (live, 2026-10-11) |
+| odysseus | in-repo | `apps/odysseus/chart` | `gitops/apps/odysseus.yaml` | `odysseus` | `odysseus.atlas.lan` |
+| photocraft | in-repo | `apps/photocraft/chart` | `gitops/apps/photocraft.yaml` | `photocraft` | `photocraft.atlas.lan` |
 
 ## redop — RED Operations Platform
 
@@ -49,12 +52,13 @@ PostgreSQL, defined entirely in one chart.
   `redop-secrets.yaml` (app secrets), `redop-registry.yaml` (image pull).
 - **Config:** `execEmail`, `defaultModel` (`openrouter/auto`), resource requests
   and ports in `apps/redop/chart/values.yaml`.
-- **Observed 2026-10-07 (review K/D):** all five Deployments Ready and migration
-  Job succeeded; live app tags `sha-acbcee9`, checkout `sha-de44d86`. An older
-  API pod retained a probe-failure event; current API has zero restarts. Ingress
+- **Observed 2026-10-11 (review K/D):** live tag `sha-54aa2c7` matches this
+  checkout and Argo is Synced/Healthy after the DNS remediation; the migration
+  Job completed and all four Deployments are Ready. Ingress
   routes `/red` to API, `/screens` to UI, root and `/api/backend` to cockpit.
-  Argo Synced refers to forge main, not this checkout. Cockpit authentication is
-  declared disabled; IP restriction is not an identity layer.
+  Cockpit authentication is declared disabled; IP restriction is not an
+  identity layer. Earlier 2026-10-07 review details remain in
+  [infrastructure-review.md](infrastructure-review.md).
 
 ## immich — photo/video library
 
@@ -87,6 +91,18 @@ PostgreSQL, because Immich v3 requires the `vchord` extension.
 - **Namespace:** `immich`; **Ingress:** `immich.atlas.lan` (TLS `atlas-ca`);
   valkey (Redis) and a 10Gi ML-model cache PVC run in-chart. The database dump
   does not back up the media library.
+
+## atlas-landing, docs, odysseus, photocraft — newer in-repo apps
+
+- **atlas-landing** (`v0.2.0`): static wordmark page for `atlas.lan` /
+  `www.atlas.lan`; stateless.
+- **docs** (`docs.atlas.lan`): this site. Built by Gitea Actions into the
+  private registry and deployed as an immutable digest image (2026-10-11).
+- **odysseus** (`odysseus.atlas.lan`): main app plus ChromaDB `1.0.20`, ntfy
+  `v2.11.0` and searxng side services; pinned to `worker1`; four NFS PVCs
+  (data 20Gi, chromadb 10Gi, ntfy 1Gi, searxng 1Gi).
+- **photocraft** (`v0.6.1`): `photocraft.atlas.lan`; stateless, single replica
+  on worker1.
 
 ## Adding an app
 

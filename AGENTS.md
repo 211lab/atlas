@@ -120,34 +120,35 @@ kubectl -n <ns> get deploy,po,ingress,certificate
 - `docs/` and these instructions are the source of truth for ops; update them
   when behavior changes.
 
-## Known issues / drift (verified 2026-10-04)
+## Known issues / drift (verified 2026-10-11)
 
-- **DNS not live:** Pi-hole (`10.0.0.107`) is unprovisioned and the external-dns
-  SealedSecret is a placeholder (see *Open work*). The `external-dns` namespace
-  is currently empty.
-- **Fixed in git, not yet live** (apply by pushing `main` to the forge):
-  - `gitea-actions` `OutOfSync` — the runner StatefulSet is now annotated
-    `argocd.argoproj.io/compare-options: IgnoreExtraneous` for API-defaulted
-    fields.
-  - `redop-api` liveness flapping — probe `timeoutSeconds` raised to 5s.
+- **DNS is live.** Pi-hole (`10.0.0.10`, LXC on Memex) resolves `*.atlas.lan`
+  network-wide; ExternalDNS (`Synced/Healthy`) registers Ingress hosts;
+  CoreDNS `coredns-custom` answers the forge/Argo hosts with the Traefik
+  ClusterIP and forwards all other `atlas.lan` names to Pi-hole. The four k3s
+  guests use Pi-hole as their resolver (node image pulls depend on this).
+- **All 19 Argo Applications Synced/Healthy** (2026-10-11). The former
+  `gitea-actions` OutOfSync is fixed by explicit `ignoreDifferences` JSON
+  pointers in `gitops/apps/gitea-actions.yaml`; the former `redop` probe
+  timeout fix is live with tag `sha-54aa2c7`.
 - Prometheus retention is 7d on `emptyDir` (ephemeral); no PVC.
 - The `sealed-secrets` chart reports appVersion 0.31.0 but the image is 0.40.0
   (pinned via values).
 - `docs/gitops-platform.md` says to re-seal `atlas-ca` ConfigMaps; the live CA
   is the `atlas-ca-tls` Secret, and `atlas-ca` ConfigMaps exist only in
   `argocd` and `gitea` (not `cert-manager`).
+- Worker root disk is comfortable again after the 2026-10-10 guest resize
+  (28% used); cp3 root is the tightest k3s disk at 74%.
+- Monitoring retains two superseded `Failed` Grafana pods (old ReplicaSet
+  leftovers; the Deployment is healthy).
 
 ## Open work / pending decisions
 
-- **DNS and reachability — ADR 0001 (accepted), declared but not live.** The
-  decision and design are on `main` (`docs/adr/0001-*`, `docs/pihole-dns.md`),
-  but the Pi-hole host (`10.0.0.107`, `pihole.atlas.lan`) is **not
-  provisioned** (`ansible/playbooks/pihole.yaml`), `gitops/sealed/pihole-api.yaml`
-  is a **placeholder** that will not authenticate, and `pihole.atlas.lan` does
-  not resolve in-cluster. ExternalDNS (`gitops/apps/external-dns.yaml`) will be
-  Degraded until those are done — do not treat its records as authoritative.
 - **Immich backup/recovery follow-up** — verify ongoing backup health and backup
   capacity, rehearse a PostgreSQL restore, and arrange an independent media
   backup (see the [Immich runbook](docs/runbooks/immich.md)).
+- **Tailnet/DHCP cutover and client trust** — ADR 0001 is live for LAN DNS;
+  tailnet split-DNS and router DHCP adoption remain unverified (see
+  `docs/atlas-dns.md`).
 - `apps/redop/chart/values.yaml` cites "ADR 0003", which does not exist; ADR
   numbering beyond 0001 is not established here.

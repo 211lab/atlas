@@ -4,8 +4,9 @@
 
 > Scope: the four-member Atlas Proxmox cluster runs the highly available k3s control plane. The inventory also includes standalone Proxmox hosts Memex and Minsky. This is a tailored operational guide. It contains no passwords, private keys, node-join tokens, or kubeconfig credential data.
 
-For the **live collection**, all inventoried hosts/guests, all 17
-namespaces and recovery gaps, see the [infrastructure review](infrastructure-review.md).
+For the **live collection**, all inventoried hosts/guests, every namespace and
+recovery gaps, see the [infrastructure review](infrastructure-review.md)
+(including its 2026-10-11 refresh).
 The tables below retain the historical snapshot and operational examples;
 they are not a live-health cache. Control planes are schedulable and run apps.
 
@@ -236,11 +237,13 @@ atlas-k3s-cp3       Ready    control-plane,etcd   48d   v1.36.3+k3s1   10.0.0.11
 atlas-k3s-worker1   Ready    worker               48d   v1.36.3+k3s1   10.0.0.113    Ubuntu 24.04.4 LTS   containerd://2.3.2-k3s2
 ~~~
 
-Namespaces included `default`, `kube-node-lease`,
-`kube-public`, `kube-system`, `argocd`, `cert-manager`, `gitea`, `sealed-secrets`,
-`monitoring`, `demo`, `redop`, and an empty orphan `external-dns`. The `demo`
-namespace is legacy: its workload is no longer declared in Git and the namespace
-may remain until live Argo reconciliation removes owned resources.
+Namespaces observed on 2026-10-11 include the Kubernetes system namespaces
+(`default`, `kube-node-lease`, `kube-public`, `kube-system`), the platform
+namespaces (`argocd`, `cert-manager`, `cnpg-system`, `external-dns`, `gitea`,
+`sealed-secrets`, `monitoring`) and the application tenants (`3f-app`,
+`atlas-landing`, `dave-study`, `docs`, `home-assistant`, `immich`, `odysseus`,
+`photocraft`, `redop`). The `demo` namespace is legacy with no workloads; the
+full list lives in the [review](infrastructure-review.md).
 
 The active cluster endpoint should be https://10.0.0.108:6443, never 127.0.0.1, when the command runs from Titan or WSL.
 

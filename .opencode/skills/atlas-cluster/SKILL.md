@@ -29,34 +29,37 @@ resolve it, use `--resolve <host>:443:10.0.0.110` (or add a Pi-hole/hosts entry)
 
 | Item | Value |
 | --- | --- |
-| Distribution | k3s `v1.36.3+k3s1` (containerd 2.3.2-k3s2) |
+| Distribution | k3s `v1.36.3+k3s1` (containerd 2.3.2-k3s2), Ubuntu 24.04.4, kernel `6.8.0-146-generic` |
 | API endpoint | `https://10.0.0.108:6443` (kube-vip VIP, lease id `plndr-cp-lock`) |
-| Nodes | 3 control-plane/etcd + 1 worker, all `Ready`, 50d |
-| Control planes | `atlas-k3s-cp1/2/3` = 10.0.0.110/111/112 (2 vCPU, ~3.8 GiB, schedulable, no taints) |
-| Worker | `atlas-k3s-worker1` = 10.0.0.113 (2 vCPU, ~5.7 GiB) |
+| Nodes | 3 control-plane/etcd + 1 worker, all `Ready`, no taints |
+| Control planes | `atlas-k3s-cp1/2/3` = 10.0.0.110/111/112 (4 vCPU, ~11.6 GiB, schedulable; resized 2026-10-10) |
+| Worker | `atlas-k3s-worker1` = 10.0.0.113 (4 vCPU, ~11.6 GiB; resized 2026-10-10) |
 | Ingress/LB | Traefik `3.7.8` (chart 40.1.4), LoadBalancer ClusterIP 10.43.186.184 via k3s ServiceLB on all nodes |
-| DNS (in-cluster) | CoreDNS `1.14.6`; `coredns-custom` maps `*.atlas.lan` → Traefik ClusterIP 10.43.186.184 |
+| DNS | Pi-hole `10.0.0.10` network-wide (wildcard `*.atlas.lan`); CoreDNS `1.14.6` in-cluster answers forge/Argo hosts with the Traefik ClusterIP `10.43.186.184` and forwards other `atlas.lan` names to Pi-hole |
 | Metrics | metrics-server `v0.9.0` |
 
-Memory is the tight resource: node usage ~45–64%, and cp2/cp3 memory *limits*
-are overcommitted (159% / 128%). Set conservative `requests`/`limits`.
+After the 2026-10-10 guest resize (4 vCPU/12 GiB each), memory headroom is
+reasonable: control planes ~25–30% used, worker ~49%. cp3's root disk is the
+tightest k3s filesystem (74%).
 
 ### Namespaces and workloads
 
-`argocd`, `cert-manager`, `gitea`, `monitoring`, `redop`,
-`sealed-secrets`, `kube-system` (plus empty orphan `external-dns`).
-
-The `demo` namespace is legacy; its workload is no longer declared in Git and
-the namespace may remain until live Argo reconciliation removes owned resources.
+21 namespaces (2026-10-11): `argocd`, `cert-manager`, `gitea`, `monitoring`,
+`sealed-secrets`, `external-dns`, plus tenants `3f-app`, `atlas-landing`,
+`dave-study`, `docs`, `home-assistant`, `immich`, `odysseus`, `photocraft`,
+`redop`, `cnpg-system`, `kube-system` and the system/default namespaces. `demo`
+is an empty legacy namespace.
 
 | Namespace | What runs |
 | --- | --- |
 | `argocd` | Argo CD `v3.5.3` (server, repo-server, application-controller, applicationset-controller, redis) |
 | `cert-manager` | cert-manager `v1.21.2`; `atlas-ca` ClusterIssuer |
+| `cnpg-system` | CloudNativePG operator `1.30.1` (Immich PostgreSQL) |
 | `gitea` | Gitea `1.27.0` (chart 12.7.0) + Bitnami PostgreSQL 17 StatefulSet + act_runner StatefulSet (`gitea-actions` chart 0.1.2) |
 | `sealed-secrets` | sealed-secrets controller `0.40.0` |
 | `monitoring` | kube-prometheus-stack `88.3.0` (operator v0.93.0, Grafana 13.1.3, Prometheus StatefulSet, node-exporter, kube-state-metrics) |
-| `redop` | `redop-api`/`redop-ui`/`redop-postgres`, in-repo chart `apps/redop/chart` |
+| `redop` | `redop-api`/`redop-worker`/`redop-cockpit`/`redop-postgres` (`sha-54aa2c7`), in-repo chart `apps/redop/chart` |
+| `atlas-landing` / `docs` / `odysseus` / `photocraft` / `dave-study` / `3f-app` / `home-assistant` / `immich` | in-repo or upstream-pinned application charts; see `docs/applications.md` |
 | `kube-system` | traefik, coredns, metrics-server, local-path-provisioner, csi-driver-nfs `4.13.4`, kube-vip DS, `svclb-*` |
 
 Third-party platform components are upstream charts pinned in
@@ -67,13 +70,12 @@ Third-party platform components are upstream charts pinned in
 
 `root` (path `gitops/apps`) reconciled from
 `http://gitea-http.gitea.svc.cluster.local:3000/atlas-admin/atlas.git`.
-Children: `argocd`, `atlas-config`, `cert-manager`, `gitea`,
-`gitea-actions`, `redop`, `sealed-secrets`. All `Synced/Healthy` except
-**`gitea-actions` = `OutOfSync`** — the runner StatefulSet differs from the
-Helm render only in API-server-defaulted fields; a fix
-(`argocd.argoproj.io/compare-options: IgnoreExtraneous`) is committed but not
-yet live. `external-dns` is declared on `main` but not yet synced to the cluster
-(see DNS below).
+Children (2026-10-11): `3f-app`, `argocd`, `atlas-config`, `atlas-landing`,
+`cert-manager`, `cloudnative-pg`, `dave-study`, `docs`, `external-dns`, `gitea`,
+`gitea-actions`, `gitea-runner-hygiene`, `home-assistant`, `immich`,
+`odysseus`, `photocraft`, `redop`, `sealed-secrets`. All `Synced/Healthy`
+(the former `gitea-actions` OutOfSync is fixed by explicit `ignoreDifferences`
+JSON pointers).
 
 - `atlas-config` applies `gitops/manifests/*` into namespace `cert-manager`
   (cluster-scoped objects: `atlas-ca` ClusterIssuer/Certificate, `truenas-nfs`
@@ -86,7 +88,11 @@ yet live. `external-dns` is declared on `main` but not yet synced to the cluster
 | --- | --- | --- |
 | `git.atlas.lan`, `registry.atlas.lan` | gitea | `gitea-tls` |
 | `argocd.atlas.lan` | argocd-server | `argocd-server-tls` |
-| `redop.atlas.lan` | redop-ui | `redop-tls` |
+| `redop.atlas.lan` | redop (cockpit/UI/API split) | `redop-tls` |
+| `atlas.lan`, `www.atlas.lan` | atlas-landing | `atlas-landing-tls` |
+| `docs.atlas.lan` | docs | `docs-tls` |
+| `odysseus.atlas.lan`, `photocraft.atlas.lan` | odysseus / photocraft | app `atlas-ca` certs |
+| `3fapp`, `dave-study`, `home-assistant`, `immich` | their apps | app `atlas-ca` certs |
 
 All ingress class `traefik`; TLS issued by the `atlas-ca` ClusterIssuer
 (cert-manager) from the `atlas-ca-tls` Secret. Gitea SSH is a LoadBalancer
@@ -94,17 +100,16 @@ All ingress class `traefik`; TLS issued by the `atlas-ca` ClusterIssuer
 LoadBalancer on port 3000. `atlas-ca` public cert is also published as
 ConfigMaps in `argocd` and `gitea` for in-cluster trust.
 
-**Network-wide DNS is declared but not live** (ADR 0001,
-`docs/adr/0001-service-naming-and-reachability.md`; design in
-`docs/pihole-dns.md`): a dedicated Pi-hole (`10.0.0.107`) plus an `external-dns`
-Application would auto-register Ingress hosts. Until the Pi-hole is provisioned
-and `gitops/sealed/pihole-api.yaml` is re-sealed from its placeholder,
-`.atlas.lan` resolves only in-cluster (CoreDNS `coredns-custom`) and via
-workstation `/etc/hosts` entries:
+**Network-wide DNS is live** (ADR 0001 design in
+`docs/pihole-dns.md`): the Pi-hole LXC `10.0.0.10` on Memex resolves
+`*.atlas.lan` (wildcard → Traefik nodes `.110–.113`, plus ExternalDNS-managed
+records). CoreDNS `coredns-custom` answers `git`/`registry`/`argocd.atlas.lan`
+in-cluster and forwards every other `atlas.lan` name to Pi-hole
+(`gitops/manifests/coredns-atlas.yaml`). Workstation `/etc/hosts` fallback:
 
 ```text
-10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan redop.atlas.lan immich.atlas.lan
-10.0.0.107 pihole.atlas.lan
+10.0.0.110 git.atlas.lan registry.atlas.lan argocd.atlas.lan redop.atlas.lan immich.atlas.lan docs.atlas.lan
+10.0.0.10 pihole.atlas.lan
 ```
 
 ### Storage
@@ -114,9 +119,12 @@ workstation `/etc/hosts` entries:
 | `local-path` (default) | rancher.io/local-path | node-local, ephemeral/non-platform |
 | `truenas-nfs` | nfs.csi.k8s.io | TrueNAS 10.0.10.26, export `/mnt/data/atlas-k8s`, RWX-capable, expansion allowed |
 
-Bound PVCs: `gitea-shared-storage` (10Gi), `data-gitea-postgresql-0` (8Gi),
-`data-runner-gitea-actions-runner-0` (1Gi), `redop-data` (10Gi),
-`redop-postgres-data` (10Gi). Prometheus is `emptyDir` (7d retention, no PVC).
+Bound PVCs (2026-10-11, 14 total / 251 GiB requested): gitea
+(`gitea-shared-storage` 10Gi, `data-gitea-postgresql-0` 8Gi,
+`data-runner-gitea-actions-runner-0` 1Gi), home-assistant (10Gi), immich
+(`immich-library` 50Gi, `immich-machine-learning` 10Gi, `immich-backup` 100Gi,
+`immich-database-local-1` 10Gi local-path), odysseus (20+10+1+1 Gi), redop
+(10+10 Gi). Prometheus is `emptyDir` (7d retention, no PVC).
 
 ## Credentials and how to read them
 
@@ -165,16 +173,17 @@ helm list -A
 
 ## Known issues and drift
 
-- `gitea-actions` Application `OutOfSync` (Helm field/defaulting noise; runner
-  healthy). Fix committed (`IgnoreExtraneous`) but not yet live.
-- `external-dns` is declared on `main` but not deployed: Pi-hole (`10.0.0.107`)
-  is unprovisioned and its SealedSecret is a placeholder; the namespace is empty.
-- `redop-api` liveness probe occasionally timed out on the default 1s timeout; a
-  5s timeout fix is committed but not yet live (all `/health` requests return 200).
+- All Argo Applications `Synced/Healthy` as of 2026-10-11; the runner
+  StatefulSet ignores only exact Helm-era/API-defaulted fields via JSON
+  pointers (chart-managed settings stay compared).
+- `redop-api` liveness probe uses the 5s timeout fix (live since 2026-10-10).
 - Prometheus storage is ephemeral (`emptyDir`, 7d) — no persistence.
 - `sealed-secrets` chart appVersion (0.31.0) != running image (0.40.0).
 - Only one worker node; control planes are schedulable and carry most pods.
-- Control-plane memory limits are overcommitted — prefer requests-based sizing.
+- cp3 root disk is 74% used; two superseded `Failed` Grafana pods linger in
+  `monitoring` (old ReplicaSet leftovers, Deployment healthy).
+- Tailnet split-DNS and router DHCP adoption remain unverified (see
+  `docs/atlas-dns.md`).
 
 ## Guardrails
 

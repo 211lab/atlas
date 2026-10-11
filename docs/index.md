@@ -34,7 +34,7 @@ instructions, not continuously refreshed health reports.
 - [Build, publish, release and roll back this site](docs-publishing.md)
 - [Documentation site and infrastructure review specification](specs/docs-site-and-infrastructure-review.md)
 
-The canonical site is `https://docs.atlas.lan/`. DNS resolution is not proof of
-deployment: the review's 2026-10-07 collection found no docs ingress and HTTP
-404. Publishing remains gated on authorization and the prerequisites in the
-publishing runbook.
+The canonical site is `https://docs.atlas.lan/`. It is live since
+2026-10-11 (the 2026-10-07 collection had found no docs ingress and HTTP 404;
+that is superseded). Publishing changes are gated by the
+prerequisites in the [publishing runbook](docs-publishing.md).

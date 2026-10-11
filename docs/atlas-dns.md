@@ -17,8 +17,11 @@ repository runbook `ansible/docs/proxmox-pihole-lxc.md` (container).
 
 Sources: [review D/K/N/H](infrastructure-review.md#evidence-and-scope).
 Pi-hole `.10` and ExternalDNS containers are observed running; wildcard answers
-were observed directly. Static record completeness, authenticated writes,
-in-cluster forwarding and tailnet/DHCP cutover are not proven by those checks.
+were observed directly. In-cluster forwarding was verified on 2026-10-11: the
+live `coredns-custom` ConfigMap forwards unknown `atlas.lan` names to Pi-hole
+(`forward . 10.0.0.10`), and in-pod/pod-init lookups of `registry.atlas.lan`
+resolve to the Traefik ClusterIP. Static record completeness, authenticated
+writes and tailnet/DHCP cutover are not proven by those checks.
 The focused diagrams distinguish declaration from live endpoint evidence.
 
 ```mermaid
@@ -40,7 +43,9 @@ flowchart LR
 ```
 
 The declared in-cluster custom mappings are separate from client adoption of
-Pi-hole. This four-element view does not assert a live in-pod lookup test.
+Pi-hole. Since 2026-10-11 the `atlas.lan` server block also forwards any
+`atlas.lan` name without a local entry to Pi-hole (keeping this four-element
+view accurate: CoreDNS serves mapped names itself and delegates the rest).
 
 ```mermaid
 flowchart LR
