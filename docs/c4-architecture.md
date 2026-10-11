@@ -257,8 +257,8 @@ Memex were empty.
 | --- | --- | --- |
 | PVE cluster | Turing `.101`, Hopper `.102`, Lovelace `.103`, Babbage `.104` | Four quorum voters; 4 CPUs/~15.5 GiB usable each |
 | Standalone PVE | Memex `.105`, Minsky `.106` | NAS/DNS versus hermes; separate failure domains, not cluster members |
-| k3s server | cp1/2/3 `.110/.111/.112` | Each 2 vCPU/4 GiB configured, ~3.76 GiB API capacity; embedded etcd |
-| k3s agent | worker1 `.113` | 2 vCPU/6 GiB configured, ~5.72 GiB API capacity |
+| k3s server | cp1/2/3 `.110/.111/.112` | Each 2 vCPU/8 GiB configured (resized from 4 GiB on 2026-10-10 after cp1 memory exhaustion), ~7.8 GiB API capacity; embedded etcd |
+| k3s agent | worker1 `.113` | 2 vCPU/8 GiB configured (resized from 6 GiB on 2026-10-10), ~7.7 GiB API capacity |
 | API VIP | `.108:6443` | kube-vip, not an additional server |
 
 No node is tainted: control planes carry most application pods. NFS removes
