@@ -117,6 +117,11 @@ explicitly approved; retain the previous Git revision for restoration.
 - The Gitea Actions dind scratch cap was raised from 15Gi to 30Gi
   (`helm/values/gitea-actions.yaml`) because this image plus its build cache
   exceeded 15Gi and evicted the runner mid-build.
+- Hardening (2026-10-10): the app's first boot (npm ci + Chromium + uvicorn,
+  ~1.5 GiB spike) exhausted cp1's then-4 GiB guest and took the node NotReady;
+  the whole odysseus stack is now pinned to the worker via
+  `nodeSelector: atlas.cluster/node-type=worker` (chart values). All four k3s
+  guests were resized to 4 vCPU/12 GiB on the Proxmox hosts the same day.
 - First-run model-provider setup is an operator action after rollout.
 - LAN name resolution requires a Pi-hole/hosts entry for `odysseus.atlas.lan`
   while external DNS is unavailable.

@@ -5,6 +5,13 @@ image:
 
 imagePullSecrets: gitea-registry
 
+# Pin the whole stack to the worker node. The app's first boot (npm ci +
+# Chromium + uvicorn) spikes well past 1.5 GiB and evicted/killed cp1 when it
+# landed there on 2026-10-10; control planes run k3s+etcd and must not carry
+# this workload. Single-worker cluster: if worker1 is down, the stack is down.
+nodeSelector:
+  atlas.cluster/node-type: worker
+
 app:
   port: 7000
   publicUrl: https://odysseus.atlas.lan

@@ -10,6 +10,7 @@ spec:
     metadata:
       labels: { app: odysseus }
     spec:
+      nodeSelector: {{- toYaml .Values.nodeSelector | nindent 8 }}
       imagePullSecrets:
         - name: {{ .Values.imagePullSecrets }}
       initContainers:
@@ -66,6 +67,7 @@ spec:
     metadata:
       labels: { app: odysseus-chromadb }
     spec:
+      nodeSelector: {{- toYaml .Values.nodeSelector | nindent 8 }}
       containers:
         - name: chromadb
           image: {{ .Values.chromadb.image }}
@@ -91,6 +93,7 @@ spec:
     metadata:
       labels: { app: odysseus-searxng }
     spec:
+      nodeSelector: {{- toYaml .Values.nodeSelector | nindent 8 }}
       containers:
         - name: searxng
           image: {{ .Values.searxng.image }}
@@ -129,6 +132,7 @@ spec:
     metadata:
       labels: { app: odysseus-ntfy }
     spec:
+      nodeSelector: {{- toYaml .Values.nodeSelector | nindent 8 }}
       containers:
         - name: ntfy
           image: {{ .Values.ntfy.image }}
