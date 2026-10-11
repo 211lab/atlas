@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: atlas-landing-homepage
+  labels:
+    app.kubernetes.io/name: atlas-landing
+---
+# Read-only, narrowly scoped: homepage discovers services from Ingress
+# annotations and reads pod/node data for the resources widget.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: atlas-landing-homepage
+  labels:
+    app.kubernetes.io/name: atlas-landing
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: atlas-landing-homepage
+  labels:
+    app.kubernetes.io/name: atlas-landing
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: atlas-landing-homepage
+subjects:
+  - kind: ServiceAccount
+    name: atlas-landing-homepage
+    namespace: {{ .Release.Namespace }}

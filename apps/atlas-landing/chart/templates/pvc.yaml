@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.background.pvcName }}
+  labels:
+    app.kubernetes.io/name: atlas-landing
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{ .Values.background.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.background.size }}

@@ -4,6 +4,10 @@ metadata:
   name: odysseus
   annotations:
     cert-manager.io/cluster-issuer: atlas-ca
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: Odysseus
+    gethomepage.dev/group: Apps
+    gethomepage.dev/description: Odysseus application
 spec:
   ingressClassName: traefik
   tls:

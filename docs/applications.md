@@ -94,8 +94,12 @@ PostgreSQL, because Immich v3 requires the `vchord` extension.
 
 ## atlas-landing, docs, odysseus, photocraft — newer in-repo apps
 
-- **atlas-landing** (`v0.2.0`): static wordmark page for `atlas.lan` /
-  `www.atlas.lan`; stateless.
+- **atlas-landing**: Homepage dashboard for `atlas.lan` / `www.atlas.lan` that
+  self-populates from Ingress annotations (`gethomepage.dev/enabled`) and shows
+  the original artwork plus a weather-driven generated background refreshed every
+  3 hours by a CronJob. Three containers (Homepage, background nginx, generator
+  init) over a shared `truenas-nfs` RWX PVC; see the
+  [runbook](runbooks/atlas-landing.md).
 - **docs** (`docs.atlas.lan`): this site. Built by Gitea Actions into the
   private registry and deployed as an immutable digest image (2026-10-11).
 - **odysseus** (`odysseus.atlas.lan`): main app plus ChromaDB `1.0.20`, ntfy

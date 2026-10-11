@@ -1,0 +1,60 @@
+{{- if .Values.weather.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: atlas-landing-weather
+  labels:
+    app.kubernetes.io/name: atlas-landing
+spec:
+  schedule: {{ .Values.weather.schedule | quote }}
+  timeZone: {{ .Values.weather.timeZone }}
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: {{ .Values.weather.historyLimit }}
+  failedJobsHistoryLimit: {{ .Values.weather.failedHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: atlas-landing
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: generate
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              env:
+                - name: OPENROUTER_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.weather.secretName }}
+                      key: {{ .Values.weather.keyName }}
+                - name: DATA_DIR
+                  value: /data
+                - name: WEATHER_LAT
+                  value: {{ .Values.weather.latitude | quote }}
+                - name: WEATHER_LON
+                  value: {{ .Values.weather.longitude | quote }}
+                - name: WEATHER_PLACE
+                  value: {{ .Values.weather.place | quote }}
+                - name: IMAGE_MODEL
+                  value: {{ .Values.weather.imageModel | quote }}
+                - name: VISION_MODEL
+                  value: {{ .Values.weather.visionModel | quote }}
+              volumeMounts:
+                - name: background
+                  mountPath: /data
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+{{ toYaml .Values.resources.generator | indent 16 }}
+          volumes:
+            - name: background
+              persistentVolumeClaim:
+                claimName: {{ .Values.background.pvcName }}
+{{- end }}

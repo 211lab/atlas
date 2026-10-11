@@ -1,14 +1,37 @@
+# Atlas landing chart values.
+#
+# The `image` below is the in-house background generator (built by the
+# atlas-landing CI pipeline). It is used for the seed init-container and the
+# scheduled weather CronJob. CI promotes `image.tag`; never edit it by hand.
 image:
   repository: registry.atlas.lan/atlas-admin/atlas-landing
-  tag: v0.2.0
+  tag: v0.3.0
   pullPolicy: IfNotPresent
+
+# Upstream dashboard (gethomepage/homepage) and the static server that exposes
+# the generated background. Both are pinned upstream images.
+homepage:
+  image:
+    repository: ghcr.io/gethomepage/homepage
+    tag: v2.5.0
+nginx:
+  image:
+    repository: nginx
+    tag: 1.27-alpine
 
 imagePullSecrets: gitea-registry
 
 replicaCount: 1
 
 service:
-  port: 80
+  homepagePort: 3000
+  backgroundPort: 8080
+
+# Shared volume holding the current background image and its metadata.
+background:
+  pvcName: atlas-landing-background
+  storageClassName: truenas-nfs
+  size: 1Gi
 
 ingress:
   hosts:
@@ -16,10 +39,40 @@ ingress:
     - www.atlas.lan
   tlsSecretName: atlas-landing-tls
 
+# Scheduled weather-driven background generation. See docs/runbooks/atlas-landing.md.
+weather:
+  enabled: true
+  schedule: "0 */3 * * *"
+  timeZone: America/New_York
+  place: "Swarthmore, Pennsylvania"
+  latitude: "39.8998"
+  longitude: "-75.3473"
+  imageModel: google/gemini-2.5-flash-image
+  visionModel: google/gemini-2.5-flash
+  secretName: atlas-landing-secrets
+  keyName: OPENROUTER_API_KEY
+  historyLimit: 1
+  failedHistoryLimit: 3
+
 resources:
-  requests:
-    cpu: 5m
-    memory: 16Mi
-  limits:
-    cpu: 100m
-    memory: 64Mi
+  homepage:
+    requests:
+      cpu: 20m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  nginx:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+  generator:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi

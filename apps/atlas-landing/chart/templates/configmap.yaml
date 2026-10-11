@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atlas-landing-config
+  labels:
+    app.kubernetes.io/name: atlas-landing
+data:
+  settings.yaml: |
+    title: Atlas
+    description: Atlas homelab service directory
+    theme: dark
+    color: slate
+    headerStyle: boxed
+    cardStyle: hairline
+    statusStyle: dot
+    target: _blank
+    disableIndexing: true
+    logpath: /tmp
+    favicon: https://{{ index .Values.ingress.hosts 0 }}/weather/favicon-256.png
+    background:
+      image: https://{{ index .Values.ingress.hosts 0 }}/weather/background.jpg
+      opacity: 65
+      blur: sm
+      brightness: 45
+      saturate: 90
+    layout:
+      Platform:
+        style: row
+        columns: 4
+      Apps:
+        style: row
+        columns: 4
+      Media:
+        style: row
+        columns: 3
+      Home:
+        style: row
+        columns: 3
+      Docs:
+        style: row
+        columns: 3
+  services.yaml: |
+    # Intentionally empty: services are discovered from Ingress annotations
+    # (gethomepage.dev/enabled) so the directory tracks the cluster.
+    []
+  bookmarks.yaml: |
+    []
+  widgets.yaml: |
+    - resources:
+        label: atlas
+        cpu: true
+        memory: true
+        uptime: true
+    - openmeteo:
+        label: {{ .Values.weather.place }}
+        latitude: {{ .Values.weather.latitude }}
+        longitude: {{ .Values.weather.longitude }}
+        timezone: {{ .Values.weather.timeZone }}
+        units: metric
+    - search:
+        provider: duckduckgo
+        target: _blank
+    - datetime:
+        text_size: l
+        format:
+          dateStyle: medium
+          timeStyle: short
+  kubernetes.yaml: |
+    mode: cluster
+    ingress: true

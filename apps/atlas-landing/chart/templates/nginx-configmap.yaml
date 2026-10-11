@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atlas-landing-nginx
+  labels:
+    app.kubernetes.io/name: atlas-landing
+data:
+  default.conf: |
+    # Serves the generated background and its assets from the shared volume.
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    server {
+      listen {{ .Values.service.backgroundPort }};
+      server_name _;
+      charset utf-8;
+      autoindex off;
+
+      add_header Cache-Control "no-store, must-revalidate";
+      add_header X-Content-Type-Options "nosniff";
+
+      location = /weather {
+        return 302 /weather/;
+      }
+
+      location /weather/ {
+        alias /data/;
+      }
+    }

@@ -26,6 +26,10 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
     traefik.ingress.kubernetes.io/router.middlewares: {{ printf "%s-%s-ipallow@kubernetescrd" .Release.Namespace (include "redop.fullname" .) }}
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: Redop
+    gethomepage.dev/group: Apps
+    gethomepage.dev/description: Redop cockpit
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:

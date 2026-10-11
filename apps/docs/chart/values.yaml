@@ -19,6 +19,10 @@ ingress:
     cert-manager.io/cluster-issuer: atlas-ca
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: Docs
+    gethomepage.dev/group: Docs
+    gethomepage.dev/description: Atlas platform documentation
   tlsSecretName: docs-tls
 
 resources:

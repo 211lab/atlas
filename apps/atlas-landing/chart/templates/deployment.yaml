@@ -14,16 +14,55 @@ spec:
       labels:
         app.kubernetes.io/name: atlas-landing
     spec:
+      serviceAccountName: atlas-landing-homepage
       imagePullSecrets:
         - name: {{ .Values.imagePullSecrets }}
-      containers:
-        - name: nginx
+      initContainers:
+        # Place the original artwork (and favicons) on the shared volume once, so
+        # the homepage always has a background even before the first generation.
+        - name: seed
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["sh", "-ec"]
+          args:
+            - |
+              set -e
+              if [ ! -s /data/background.jpg ]; then
+                cp /app/seed/hero.jpg /data/background.jpg
+              fi
+              cp -n /app/seed/favicon-256.png /data/favicon-256.png || true
+              cp -n /app/seed/favicon-32.png /data/favicon-32.png || true
+              if [ ! -s /data/weather.json ]; then
+                printf '{"source":"seed","label":"Original artwork"}\n' > /data/weather.json
+              fi
+          volumeMounts:
+            - name: background
+              mountPath: /data
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+{{ toYaml .Values.resources.generator | indent 12 }}
+      containers:
+        - name: homepage
+          image: "{{ .Values.homepage.image.repository }}:{{ .Values.homepage.image.tag }}"
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 80
+              containerPort: {{ .Values.service.homepagePort }}
               protocol: TCP
+          env:
+            # Same-origin hosts, plus the pod IP so kubelet probes (which send
+            # Host: <podIP>:<port>) are not rejected by host validation.
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: HOMEPAGE_ALLOWED_HOSTS
+              value: {{ join "," .Values.ingress.hosts }},localhost:{{ .Values.service.homepagePort }},127.0.0.1:{{ .Values.service.homepagePort }},$(POD_IP),$(POD_IP):{{ .Values.service.homepagePort }}
+            - name: LOG_TARGETS
+              value: stdout
           readinessProbe:
             httpGet:
               path: /
@@ -38,10 +77,56 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+{{ toYaml .Values.resources.homepage | indent 12 }}
+        - name: background
+          image: "{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: background
+              containerPort: {{ .Values.service.backgroundPort }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /weather/favicon-32.png
+              port: background
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /weather/favicon-32.png
+              port: background
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: background
+              mountPath: /data
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
               add: [CHOWN, SETUID, SETGID, DAC_OVERRIDE]
           resources:
-{{ toYaml .Values.resources | indent 12 }}
+{{ toYaml .Values.resources.nginx | indent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: atlas-landing-config
+        - name: nginx-config
+          configMap:
+            name: atlas-landing-nginx
+        - name: background
+          persistentVolumeClaim:
+            claimName: {{ .Values.background.pvcName }}

@@ -36,4 +36,8 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: atlas-ca
     traefik.ingress.kubernetes.io/router.middlewares: 3f-app-3f-app-ipallow@kubernetescrd
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: 3F App
+    gethomepage.dev/group: Apps
+    gethomepage.dev/description: 3F application
   tlsSecretName: 3f-app-tls
