@@ -11,4 +11,5 @@ data:
             10.0.0.10     pihole.atlas.lan
             fallthrough
         }
+        forward . 10.0.0.10
     }
