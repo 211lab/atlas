@@ -125,3 +125,81 @@ explicitly approved; retain the previous Git revision for restoration.
 - First-run model-provider setup is an operator action after rollout.
 - LAN name resolution requires a Pi-hole/hosts entry for `odysseus.atlas.lan`
   while external DNS is unavailable.
+
+## Follow-up: admin credential escrow and recovery
+
+### Goal and user-visible behavior
+
+Keep the currently verified Odysseus `admin` login in a strict-scope
+SealedSecret in the `odysseus` namespace, and document how an operator can
+retrieve it or recover access if the application password drifts. The credential
+is an operator-held escrow value; it is not injected into the app container.
+
+### Non-goals
+
+- No auth bypass, signup enablement, or additional Odysseus users.
+- No automatic synchronization from the application database back into the
+  Kubernetes Secret.
+- No promise that the sealed password stays valid after an in-app password
+  change; the application auth file remains authoritative.
+- No changes to the Odysseus application or upstream source.
+
+### Acceptance criteria (Given/When/Then)
+
+- Given the existing `odysseus` Argo Application, when the SealedSecret is
+  reconciled, then it creates `odysseus-admin-credentials` in namespace
+  `odysseus` with `username` and `password` keys.
+- Given this repo is inspected, when searching tracked files, then only encrypted
+  credential material is present; no plaintext username/password pair is
+  committed.
+- Given an operator needs the credential, when following the Odysseus runbook,
+  then the operator can safely retrieve the Secret and is warned that it may be
+  stale after changing the password in Odysseus.
+- Given an operator is locked out, when following the recovery runbook, then it
+  explains that no upstream admin-reset command is documented, preserves a
+  backup of `/app/data/auth.json`, resets only the existing admin password,
+  invalidates persisted sessions, restarts and verifies Odysseus, and reseals
+  the resulting credential.
+- Given the runbook's unsupported direct auth-file operation is needed, then it
+  explicitly warns that this is a manual state mutation and requires a backup
+  and careful verification; it does not disable authentication or delete user
+  data.
+
+### Constraints
+
+- Follow `docs/sealing-secrets.md`: strict scope, controller `sealed-secrets`,
+  namespaced secret beside the app's other SealedSecrets, and never commit or
+  apply plaintext.
+- Argo CD remains the declarative owner; no plaintext Secret manifest or
+  credential env vars are added to the chart.
+- Recovery must preserve all existing Odysseus data and account metadata except
+  the selected admin password hash and saved session tokens.
+
+### ASSUMPTIONs
+
+- ASSUMPTION: use Secret name `odysseus-admin-credentials` and keys `username`
+  and `password`; these are for operator retrieval only.
+- ASSUMPTION: the current verified admin login is appropriate to escrow; rotate
+  it in Odysseus and reseal if it was shared or changed.
+- ASSUMPTION: recovery documentation belongs in a dedicated
+  [`docs/runbooks/odysseus.md`](../runbooks/odysseus.md) file linked from this
+  spec.
+
+### Plan and verification
+
+1. Add the strict-scope SealedSecret at `gitops/sealed/odysseus/admin-credentials.yaml`;
+   verify its encrypted payload does not expose the password and its scope/name/
+   namespace match the intended Secret.
+2. Add `docs/runbooks/odysseus.md` with retrieval, drift, backup, reset, rollout,
+   verification, and resealing instructions; verify commands and cautionary
+   notes against the deployed PVC layout and pinned upstream auth implementation.
+3. Link the runbook and update this spec's rollout notes; verify YAML parses,
+   docs contain no credential values, and the existing chart render remains
+   unchanged.
+
+### Rollback
+
+Revert the runbook/spec changes and remove the SealedSecret from GitOps. Do not
+delete the live Secret or persistent application data without separate explicit
+approval. If a recovery password was changed, preserve access by resealing the
+known-good value before removing its SealedSecret.
