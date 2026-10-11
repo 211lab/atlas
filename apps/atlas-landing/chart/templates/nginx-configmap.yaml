@@ -7,9 +7,7 @@ metadata:
 data:
   default.conf: |
     # Serves the generated background and its assets from the shared volume.
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-
+    # The base image already includes mime.types and sets default_type.
     server {
       listen {{ .Values.service.backgroundPort }};
       server_name _;
